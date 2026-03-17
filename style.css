@@ -438,6 +438,97 @@ nav {
 
 .btn-logout:hover { background: #b91c1c; }
 
+.actions-row {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0.75rem;
+}
+
+.dashboard-actions {
+    margin-top: 0;
+}
+
+.btn-secondary {
+    display: inline-block;
+    padding: 0.55rem 1.2rem;
+    background: #eef2f7;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+.btn-edit-profile {
+    display: inline-block;
+    padding: 0.55rem 1.25rem;
+    background: #eef4ff;
+    color: var(--primary);
+    border: 1px solid #cddcff;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-edit-profile:hover {
+    background: #e0ecff;
+    border-color: #b8ccff;
+}
+
+.edit-profile-actions {
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+.btn-cancel,
+.btn-save {
+    display: inline-block;
+    min-width: 120px;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.btn-cancel {
+    background: #f3f4f6;
+    color: var(--text);
+    border-color: #d1d5db;
+}
+
+.btn-cancel:hover {
+    background: #e5e7eb;
+}
+
+.btn-save {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.btn-save:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
     .register-body {

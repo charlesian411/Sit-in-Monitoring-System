@@ -21,7 +21,7 @@ $stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
@@ -29,12 +29,17 @@ $stmt->close();
     <span class="nav-brand">College of Computer Studies Sit-in Monitoring System</span>
     <ul class="nav-links">
         <li><a href="dashboard.php">Home</a></li>
+        <li><a href="edit_profile.php">Edit Profile</a></li>
         <li><a href="logout.php">Logout</a></li>
     </ul>
 </nav>
 
 <div class="page-wrapper">
     <div class="dashboard-card">
+        <?php if (isset($_GET['updated']) && $_GET['updated'] === '1'): ?>
+            <div class="alert alert-success">Profile updated successfully.</div>
+        <?php endif; ?>
+
         <div class="dashboard-header">
             <div class="avatar">
                 <?php echo strtoupper(substr($user['first_name'], 0, 1) . substr($user['last_name'], 0, 1)); ?>
@@ -80,7 +85,8 @@ $stmt->close();
 
         <div class="card-divider"></div>
 
-        <div style="text-align: center;">
+        <div class="actions-row dashboard-actions">
+            <a href="edit_profile.php" class="btn-edit-profile">Edit Profile</a>
             <a href="logout.php" class="btn-logout">Logout</a>
         </div>
     </div>
