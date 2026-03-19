@@ -25,8 +25,18 @@ if (!$user) {
     exit();
 }
 
+$profile_image_path = "";
+$existing_images = glob(__DIR__ . "/uploads/profile_" . $user_id . ".*");
+if (!empty($existing_images)) {
+    $profile_image_path = "uploads/" . basename($existing_images[0]);
+}
+
+$profile_image_url = "";
+if (!empty($profile_image_path) && file_exists(__DIR__ . "/" . $profile_image_path)) {
+    $profile_image_url = $profile_image_path . "?v=" . filemtime(__DIR__ . "/" . $profile_image_path);
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $id_number = trim($_POST['id_number']);
     $last_name = trim($_POST['last_name']);
     $first_name = trim($_POST['first_name']);
     $middle_name = trim($_POST['middle_name']);
@@ -35,22 +45,62 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $email = trim($_POST['email']);
     $address = trim($_POST['address']);
 
-    if (empty($id_number) || empty($last_name) || empty($first_name) || empty($course) || empty($course_level) || empty($email)) {
+    if (empty($last_name) || empty($first_name) || empty($course) || empty($course_level) || empty($email)) {
         $error = "Please fill in all required fields.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Please enter a valid email address.";
-    } else {
-        // Check duplicates excluding current user
-        $check = $conn->prepare("SELECT id FROM users WHERE (id_number = ? OR email = ?) AND id != ?");
-        $check->bind_param("ssi", $id_number, $email, $user_id);
+    }
+
+    if (empty($error) && isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] !== UPLOAD_ERR_NO_FILE) {
+        if ($_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
+            $error = "Image upload failed. Please try again.";
+        } elseif ($_FILES['profile_image']['size'] > 2 * 1024 * 1024) {
+            $error = "Profile image must be 2MB or less.";
+        } else {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime_type = finfo_file($finfo, $_FILES['profile_image']['tmp_name']);
+            finfo_close($finfo);
+
+            $allowed_types = [
+                "image/jpeg" => "jpg",
+                "image/png" => "png",
+                "image/webp" => "webp"
+            ];
+
+            if (!isset($allowed_types[$mime_type])) {
+                $error = "Only JPG, PNG, and WEBP images are allowed.";
+            } else {
+                $upload_dir = __DIR__ . "/uploads";
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
+
+                foreach (glob($upload_dir . "/profile_" . $user_id . ".*") as $old_image) {
+                    @unlink($old_image);
+                }
+
+                $new_filename = "profile_" . $user_id . "." . $allowed_types[$mime_type];
+                $target_path = $upload_dir . "/" . $new_filename;
+
+                if (!move_uploaded_file($_FILES['profile_image']['tmp_name'], $target_path)) {
+                    $error = "Unable to save uploaded image.";
+                }
+            }
+        }
+    }
+
+    if (empty($error)) {
+        // Check email duplicates excluding current user
+        $check = $conn->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+        $check->bind_param("si", $email, $user_id);
         $check->execute();
         $check->store_result();
 
         if ($check->num_rows > 0) {
-            $error = "ID number or email is already in use.";
+            $error = "Email is already in use.";
         } else {
-            $update = $conn->prepare("UPDATE users SET id_number = ?, last_name = ?, first_name = ?, middle_name = ?, course = ?, course_level = ?, email = ?, address = ? WHERE id = ?");
-            $update->bind_param("sssssissi", $id_number, $last_name, $first_name, $middle_name, $course, $course_level, $email, $address, $user_id);
+            $update = $conn->prepare("UPDATE users SET last_name = ?, first_name = ?, middle_name = ?, course = ?, course_level = ?, email = ?, address = ? WHERE id = ?");
+            $update->bind_param("ssssissi", $last_name, $first_name, $middle_name, $course, $course_level, $email, $address, $user_id);
 
             if ($update->execute()) {
                 $_SESSION['first_name'] = $first_name;
@@ -74,7 +124,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Edit Profile</title>
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 
@@ -95,10 +145,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <div class="alert alert-error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
-        <form method="POST" action="edit_profile.php">
+        <form method="POST" action="edit_profile.php" enctype="multipart/form-data">
             <div class="form-group">
                 <label class="form-label">ID Number</label>
-                <input type="text" class="form-control" name="id_number" value="<?php echo htmlspecialchars($user['id_number']); ?>" required>
+                <input type="text" class="form-control" value="<?php echo htmlspecialchars($user['id_number']); ?>" readonly>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Profile Image</label>
+                <input type="file" class="form-control-file" name="profile_image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                <p class="form-help">JPG, PNG, or WEBP. Maximum file size: 2MB.</p>
+                <?php if (!empty($profile_image_url)): ?>
+                    <img src="<?php echo htmlspecialchars($profile_image_url); ?>" alt="Profile Preview" class="profile-preview profile-two-by-two">
+                <?php endif; ?>
             </div>
 
             <div class="form-group">

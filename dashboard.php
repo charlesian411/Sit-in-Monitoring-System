@@ -14,6 +14,17 @@ $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 $stmt->close();
+
+$profile_image_path = "";
+$existing_images = glob(__DIR__ . "/uploads/profile_" . (int) $_SESSION['user_id'] . ".*");
+if (!empty($existing_images)) {
+    $profile_image_path = "uploads/" . basename($existing_images[0]);
+}
+
+$profile_image_url = "";
+if (!empty($profile_image_path) && file_exists(__DIR__ . "/" . $profile_image_path)) {
+    $profile_image_url = $profile_image_path . "?v=" . filemtime(__DIR__ . "/" . $profile_image_path);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -21,7 +32,7 @@ $stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 
@@ -41,8 +52,12 @@ $stmt->close();
         <?php endif; ?>
 
         <div class="dashboard-header">
-            <div class="avatar">
-                <?php echo strtoupper(substr($user['first_name'], 0, 1) . substr($user['last_name'], 0, 1)); ?>
+            <div class="avatar <?php echo !empty($profile_image_url) ? 'avatar-photo' : ''; ?>">
+                <?php if (!empty($profile_image_url)): ?>
+                    <img src="<?php echo htmlspecialchars($profile_image_url); ?>" alt="Profile Image" class="avatar-img profile-two-by-two">
+                <?php else: ?>
+                    <?php echo strtoupper(substr($user['first_name'], 0, 1) . substr($user['last_name'], 0, 1)); ?>
+                <?php endif; ?>
             </div>
             <h1>Welcome, <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>!</h1>
             <p class="dashboard-subtitle">You are now logged in to the CCS Sit-in Monitoring System.</p>

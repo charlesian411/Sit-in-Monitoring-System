@@ -17,6 +17,7 @@
     --link: #1a3a6b;
     --danger: #dc2626;
     --input-focus: #1a3a6b;
+    --photo-2x2: 192px;
 }
 
 body {
@@ -193,6 +194,45 @@ nav {
 }
 
 .form-control::placeholder { color: #b0b8c4; }
+
+.form-control[readonly] {
+    background: #f8fafc;
+    color: var(--muted);
+    cursor: not-allowed;
+}
+
+.form-control-file {
+    width: 100%;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: var(--muted);
+}
+
+.form-help {
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+.profile-preview {
+    width: var(--photo-2x2);
+    height: var(--photo-2x2);
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    margin-top: 0.65rem;
+}
+
+.profile-two-by-two {
+    width: var(--photo-2x2) !important;
+    height: var(--photo-2x2) !important;
+    min-width: var(--photo-2x2) !important;
+    min-height: var(--photo-2x2) !important;
+    max-width: var(--photo-2x2) !important;
+    max-height: var(--photo-2x2) !important;
+    object-fit: cover !important;
+    display: block;
+}
 
 /* ── OPTIONS ── */
 .form-options {
@@ -379,6 +419,23 @@ nav {
     font-size: 1.3rem;
     font-weight: 600;
     margin-bottom: 0.75rem;
+}
+
+.avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+}
+
+.avatar-photo {
+    width: var(--photo-2x2);
+    height: var(--photo-2x2);
+    flex: 0 0 var(--photo-2x2);
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    overflow: hidden;
 }
 
 .dashboard-header h1 {
