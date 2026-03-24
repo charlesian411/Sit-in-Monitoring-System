@@ -1,11 +1,60 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
-    header("Location: login.php");
+    header("Location: admin_login.php");
     exit();
 }
 
 require_once 'config/db.php';
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'student_lookup') {
+    header('Content-Type: application/json');
+
+    $lookup_id_number = trim($_GET['id_number'] ?? '');
+    if ($lookup_id_number === '') {
+        echo json_encode([
+            'found' => false,
+            'name' => '',
+            'remaining_sessions' => ''
+        ]);
+        exit();
+    }
+
+    $lookup_stmt = $conn->prepare("SELECT id, first_name, middle_name, last_name FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
+    $lookup_stmt->bind_param("s", $lookup_id_number);
+    $lookup_stmt->execute();
+    $lookup_res = $lookup_stmt->get_result();
+    $lookup_user = $lookup_res->fetch_assoc();
+    $lookup_stmt->close();
+
+    if (!$lookup_user) {
+        echo json_encode([
+            'found' => false,
+            'name' => '',
+            'remaining_sessions' => ''
+        ]);
+        exit();
+    }
+
+    $lookup_user_id = (int) $lookup_user['id'];
+    $lookup_count_stmt = $conn->prepare("SELECT COUNT(*) AS total_sessions FROM sit_in_records WHERE user_id = ?");
+    $lookup_count_stmt->bind_param("i", $lookup_user_id);
+    $lookup_count_stmt->execute();
+    $lookup_count_res = $lookup_count_stmt->get_result();
+    $lookup_count_row = $lookup_count_res->fetch_assoc();
+    $lookup_count_stmt->close();
+
+    $lookup_used_sessions = (int) ($lookup_count_row['total_sessions'] ?? 0);
+    $lookup_remaining_sessions = max(0, 30 - $lookup_used_sessions);
+    $lookup_name = trim($lookup_user['first_name'] . ' ' . ($lookup_user['middle_name'] ? $lookup_user['middle_name'] . ' ' : '') . $lookup_user['last_name']);
+
+    echo json_encode([
+        'found' => true,
+        'name' => $lookup_name,
+        'remaining_sessions' => $lookup_remaining_sessions
+    ]);
+    exit();
+}
 
 // Ensure admin-related tables exist
 $conn->query("CREATE TABLE IF NOT EXISTS announcements (
@@ -236,6 +285,38 @@ if (isset($_GET['search_id']) && trim($_GET['search_id']) !== '') {
     }
 }
 
+$sitin_id_number = trim($_POST['id_number'] ?? ($_GET['search_id'] ?? ''));
+$sitin_purpose = trim($_POST['purpose'] ?? '');
+$sitin_lab = trim($_POST['sit_lab'] ?? '');
+$sitin_student_name = '';
+$sitin_remaining_sessions = '';
+
+if ($search_result) {
+    $sitin_id_number = $search_result['id_number'];
+    $sitin_student_name = trim($search_result['first_name'] . ' ' . ($search_result['middle_name'] ? $search_result['middle_name'] . ' ' : '') . $search_result['last_name']);
+    $sitin_remaining_sessions = (string) ((int) ($search_result['remaining_sessions'] ?? 0));
+} elseif ($sitin_id_number !== '') {
+    $sitin_user_stmt = $conn->prepare("SELECT id, first_name, middle_name, last_name FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
+    $sitin_user_stmt->bind_param("s", $sitin_id_number);
+    $sitin_user_stmt->execute();
+    $sitin_user_res = $sitin_user_stmt->get_result();
+    $sitin_user = $sitin_user_res->fetch_assoc();
+    $sitin_user_stmt->close();
+
+    if ($sitin_user) {
+        $sitin_student_name = trim($sitin_user['first_name'] . ' ' . ($sitin_user['middle_name'] ? $sitin_user['middle_name'] . ' ' : '') . $sitin_user['last_name']);
+        $sitin_sid = (int) $sitin_user['id'];
+        $sitin_session_stmt = $conn->prepare("SELECT COUNT(*) AS total_sessions FROM sit_in_records WHERE user_id = ?");
+        $sitin_session_stmt->bind_param("i", $sitin_sid);
+        $sitin_session_stmt->execute();
+        $sitin_session_res = $sitin_session_stmt->get_result();
+        $sitin_session_row = $sitin_session_res->fetch_assoc();
+        $sitin_used_sessions = (int) ($sitin_session_row['total_sessions'] ?? 0);
+        $sitin_remaining_sessions = (string) max(0, 30 - $sitin_used_sessions);
+        $sitin_session_stmt->close();
+    }
+}
+
 $stats = [
     'students_registered' => 0,
     'currently_sit_in' => 0,
@@ -266,6 +347,103 @@ foreach ($course_stats as $course_stat) {
     $max_course_total = max($max_course_total, (int) $course_stat['total']);
 }
 
+$language_counts = [
+    'C' => 0,
+    'C#' => 0,
+    'C++' => 0,
+    'Java' => 0,
+    'Python' => 0,
+    'PHP' => 0,
+    'JavaScript' => 0,
+    'TypeScript' => 0,
+    'ASP.Net' => 0,
+    'Visual Basic' => 0,
+    'SQL' => 0,
+    'Go' => 0,
+    'Rust' => 0,
+    'Kotlin' => 0,
+    'Swift' => 0,
+    'Ruby' => 0,
+    'R' => 0,
+    'MATLAB' => 0,
+    'Perl' => 0,
+    'Dart' => 0,
+    'Other' => 0
+];
+
+$language_keywords = [
+    'C#' => ['c#', 'csharp'],
+    'C++' => ['c++', 'cpp'],
+    'Java' => ['java'],
+    'Python' => ['python'],
+    'PHP' => ['php'],
+    'JavaScript' => ['javascript'],
+    'TypeScript' => ['typescript'],
+    'ASP.Net' => ['asp.net', 'asp net', 'aspnet'],
+    'Visual Basic' => ['visual basic', 'vb.net', 'vb net'],
+    'SQL' => ['sql', 'mysql', 'postgres', 'postgresql', 'sqlite', 'mariadb'],
+    'Go' => [' golang ', ' go language ', ' go '],
+    'Rust' => ['rust'],
+    'Kotlin' => ['kotlin'],
+    'Swift' => ['swift'],
+    'Ruby' => ['ruby'],
+    'R' => [' r language ', ' language r '],
+    'MATLAB' => ['matlab'],
+    'Perl' => ['perl'],
+    'Dart' => ['dart']
+];
+
+$language_res = $conn->query("SELECT purpose FROM sit_in_records");
+if ($language_res) {
+    while ($language_row = $language_res->fetch_assoc()) {
+        $purpose_text = strtolower(trim($language_row['purpose'] ?? ''));
+        if ($purpose_text === '') {
+            continue;
+        }
+
+        $purpose_scan_text = ' ' . $purpose_text . ' ';
+        $matched_any = false;
+
+        foreach ($language_keywords as $language_label => $keywords) {
+            $matched_label = false;
+            foreach ($keywords as $keyword) {
+                if (strpos($purpose_scan_text, $keyword) !== false) {
+                    $language_counts[$language_label]++;
+                    $matched_label = true;
+                    $matched_any = true;
+                    break;
+                }
+            }
+
+            if ($matched_label) {
+                continue;
+            }
+        }
+
+        if (preg_match('/(^|[^a-z0-9])c($|[^a-z0-9#+])/', $purpose_text)) {
+            $language_counts['C']++;
+            $matched_any = true;
+        }
+
+        if (!$matched_any) {
+            $language_counts['Other']++;
+        }
+    }
+}
+
+$language_stats = [];
+foreach ($language_counts as $language_label => $language_total) {
+    $language_stats[] = [
+        'label' => $language_label,
+        'total' => (int) $language_total
+    ];
+}
+
+$max_language_total = 0;
+foreach ($language_stats as $language_stat) {
+    $max_language_total = max($max_language_total, (int) $language_stat['total']);
+}
+
 $announcements = [];
 $ann_res = $conn->query("SELECT author_name, content, created_at FROM announcements ORDER BY created_at DESC LIMIT 5");
 if ($ann_res) {
@@ -274,39 +452,23 @@ if ($ann_res) {
     }
 }
 
-$pending_reservations = [];
 $pending_count = 0;
 $pending_count_res = $conn->query("SELECT COUNT(*) AS total FROM reservations WHERE status = 'pending'");
 if ($pending_count_res && $pending_count_row = $pending_count_res->fetch_assoc()) {
     $pending_count = (int) $pending_count_row['total'];
 }
 
-$pending_list_res = $conn->query("SELECT
-    r.id,
-    r.purpose,
-    r.sit_lab,
-    r.reservation_date,
-    r.reservation_time,
-    r.created_at,
-    u.id_number,
-    u.first_name,
-    u.middle_name,
-    u.last_name
-FROM reservations r
-INNER JOIN users u ON u.id = r.user_id
-WHERE r.status = 'pending'
-ORDER BY r.created_at DESC
-LIMIT 6");
-if ($pending_list_res) {
-    while ($row = $pending_list_res->fetch_assoc()) {
-        $pending_reservations[] = $row;
-    }
-}
+$open_search_modal = isset($_GET['open']) && in_array($_GET['open'], ['search', 'sitin'], true);
+$modal_mode = (isset($_GET['open']) && $_GET['open'] === 'search') ? 'search' : 'sitin';
 
-$open_search_modal = isset($_GET['open']) && $_GET['open'] === 'search';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'add_sit_in')) {
+    $open_search_modal = true;
+    $modal_mode = 'sitin';
+}
 
 if ($search_result) {
     $open_search_modal = true;
+    $modal_mode = 'sitin';
 }
 ?>
 <!DOCTYPE html>
@@ -315,7 +477,7 @@ if ($search_result) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Admin Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 
@@ -325,7 +487,7 @@ if ($search_result) {
         <li><a href="admin_dashboard.php">Home</a></li>
         <li><a href="admin_dashboard.php?open=search">Search</a></li>
         <li><a href="admin_students.php">Students</a></li>
-        <li><a href="admin_dashboard.php#sit-in-form">Sit-in</a></li>
+        <li><a href="admin_dashboard.php?open=sitin">Sit-in</a></li>
         <li><a href="admin_current_sitin.php">View Sit-in Records</a></li>
         <li><a href="admin_reservations.php">Reservations<?php if ($pending_count > 0): ?> <span class="badge-pill"><?php echo $pending_count; ?></span><?php endif; ?></a></li>
         <li><a href="logout.php" class="admin-logout-link">Log out</a></li>
@@ -336,61 +498,6 @@ if ($search_result) {
     <?php if ($alert_message !== ''): ?>
         <div class="alert <?php echo $alert_type === 'error' ? 'alert-error' : 'alert-success'; ?> admin-alert"><?php echo htmlspecialchars($alert_message); ?></div>
     <?php endif; ?>
-
-    <section class="admin-card admin-notification-card">
-        <div class="admin-card-title">Reservation Notifications</div>
-        <div class="reservation-notice-wrap">
-            <p class="reservation-count-text">Pending reservations: <strong><?php echo $pending_count; ?></strong></p>
-            <a href="admin_reservations.php" class="admin-btn admin-btn-secondary">Open Reservations</a>
-        </div>
-        <div class="admin-table-wrap reservation-mini-table-wrap">
-            <table class="admin-table reservation-mini-table">
-                <thead>
-                    <tr>
-                        <th>ID Number</th>
-                        <th>Name</th>
-                        <th>Purpose</th>
-                        <th>Lab</th>
-                        <th>Schedule</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php if (empty($pending_reservations)): ?>
-                    <tr>
-                        <td colspan="6" class="empty-table">No pending reservations.</td>
-                    </tr>
-                <?php else: ?>
-                    <?php foreach ($pending_reservations as $pending): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($pending['id_number']); ?></td>
-                            <td><?php echo htmlspecialchars($pending['first_name'] . ' ' . ($pending['middle_name'] ? $pending['middle_name'] . ' ' : '') . $pending['last_name']); ?></td>
-                            <td><?php echo htmlspecialchars($pending['purpose']); ?></td>
-                            <td><?php echo htmlspecialchars($pending['sit_lab']); ?></td>
-                            <td><?php echo htmlspecialchars(date('M d, Y', strtotime($pending['reservation_date'])) . ' ' . date('h:i A', strtotime($pending['reservation_time']))); ?></td>
-                            <td>
-                                <div class="reservation-action-group">
-                                    <form method="POST" class="inline-form">
-                                        <input type="hidden" name="action" value="review_reservation">
-                                        <input type="hidden" name="reservation_id" value="<?php echo (int) $pending['id']; ?>">
-                                        <input type="hidden" name="decision" value="approved">
-                                        <button type="submit" class="admin-btn admin-btn-primary">Approve</button>
-                                    </form>
-                                    <form method="POST" class="inline-form">
-                                        <input type="hidden" name="action" value="review_reservation">
-                                        <input type="hidden" name="reservation_id" value="<?php echo (int) $pending['id']; ?>">
-                                        <input type="hidden" name="decision" value="rejected">
-                                        <button type="submit" class="admin-btn admin-btn-danger">Reject</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </section>
 
     <div class="admin-grid">
         <section class="admin-card">
@@ -417,6 +524,33 @@ if ($search_result) {
                                 <div class="chart-bar <?php echo $bar_class; ?>" style="width: <?php echo (float) $bar_width; ?>%;"></div>
                             </div>
                             <span class="chart-value"><?php echo (int) $course['total']; ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+
+            <h2 class="admin-language-title">Language Usage</h2>
+            <div class="mini-chart">
+                <div class="language-legend">
+                    <?php foreach ($language_stats as $lidx => $language): ?>
+                        <span class="legend-item"><span class="legend-dot bar-<?php echo $lidx % 5; ?>"></span><?php echo htmlspecialchars($language['label']); ?></span>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php if ($max_language_total <= 0): ?>
+                    <p class="empty-text">No language usage data yet.</p>
+                <?php else: ?>
+                    <?php foreach ($language_stats as $lidx => $language): ?>
+                        <?php
+                            $language_bar_width = $max_language_total > 0 ? ((int) $language['total'] / $max_language_total) * 100 : 0;
+                            $language_bar_class = 'bar-' . ($lidx % 5);
+                        ?>
+                        <div class="chart-row">
+                            <span class="chart-label"><?php echo htmlspecialchars($language['label']); ?></span>
+                            <div class="chart-track">
+                                <div class="chart-bar <?php echo $language_bar_class; ?>" style="width: <?php echo (float) $language_bar_width; ?>%;"></div>
+                            </div>
+                            <span class="chart-value"><?php echo (int) $language['total']; ?></span>
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -448,61 +582,121 @@ if ($search_result) {
         </section>
     </div>
 
-    <section id="sit-in-form" class="admin-card sit-in-card">
-        <div class="admin-card-title">Sit In Form</div>
-        <form method="POST" class="sit-in-form-grid">
-            <input type="hidden" name="action" value="add_sit_in">
-
-            <div class="form-group">
-                <label class="form-label">ID Number</label>
-                <input type="text" class="form-control" name="id_number" placeholder="Enter ID Number" required>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Purpose</label>
-                <input type="text" class="form-control" name="purpose" placeholder="e.g. C Programming" required>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Lab</label>
-                <input type="text" class="form-control" name="sit_lab" placeholder="e.g. 524" required>
-            </div>
-
-            <div class="sit-in-form-actions">
-                <button type="submit" class="admin-btn admin-btn-primary">Sit In</button>
-            </div>
-        </form>
-    </section>
 </div>
 
 <div class="modal-overlay <?php echo $open_search_modal ? 'is-open' : ''; ?>" id="search-modal">
     <div class="admin-modal">
-        <div class="modal-header">
-            <h3>Search Student</h3>
-            <a href="admin_dashboard.php" class="modal-close">×</a>
-        </div>
-
-        <form method="GET" class="modal-search-form">
-            <input type="hidden" name="open" value="search">
-            <input type="text" name="search_id" class="form-control" placeholder="Search by ID Number" value="<?php echo htmlspecialchars($_GET['search_id'] ?? ''); ?>">
-            <button type="submit" class="admin-btn admin-btn-primary">Search</button>
-        </form>
-
-        <?php if (isset($_GET['search_id'])): ?>
-            <div class="search-result-box">
-                <?php if (!$search_result): ?>
-                    <p class="empty-text">No student found.</p>
-                <?php else: ?>
-                    <p><strong>ID Number:</strong> <?php echo htmlspecialchars($search_result['id_number']); ?></p>
-                    <p><strong>Student Name:</strong> <?php echo htmlspecialchars($search_result['first_name'] . ' ' . ($search_result['middle_name'] ? $search_result['middle_name'] . ' ' : '') . $search_result['last_name']); ?></p>
-                    <p><strong>Course:</strong> <?php echo htmlspecialchars($search_result['course']); ?></p>
-                    <p><strong>Year Level:</strong> <?php echo (int) $search_result['course_level']; ?></p>
-                    <p><strong>Remaining Session:</strong> <?php echo (int) $search_result['remaining_sessions']; ?></p>
-                <?php endif; ?>
+        <?php if ($modal_mode === 'search' && !$search_result): ?>
+            <div class="modal-header">
+                <h3>Search Student</h3>
+                <a href="admin_dashboard.php" class="modal-close">×</a>
             </div>
+
+            <form method="GET" class="modal-search-form">
+                <input type="hidden" name="open" value="search">
+                <label class="form-label" for="search-student-id">ID Number</label>
+                <div class="modal-search-row">
+                    <input type="text" id="search-student-id" name="search_id" class="form-control" placeholder="Enter ID Number" value="<?php echo htmlspecialchars($_GET['search_id'] ?? ''); ?>">
+                    <button type="submit" class="admin-btn admin-btn-secondary">Search</button>
+                </div>
+            </form>
+
+            <?php if (isset($_GET['search_id']) && trim($_GET['search_id']) !== ''): ?>
+                <div class="search-result-box">
+                    <p class="empty-text">No student found.</p>
+                </div>
+            <?php endif; ?>
+        <?php else: ?>
+            <div class="modal-header">
+                <h3>Sit In Form</h3>
+                <a href="admin_dashboard.php" class="modal-close">×</a>
+            </div>
+
+            <form method="POST" class="sitin-modal-form">
+                <input type="hidden" name="action" value="add_sit_in">
+
+                <div class="form-group">
+                    <label class="form-label">ID Number:</label>
+                    <input type="text" class="form-control" id="sitin-id-number" name="id_number" value="<?php echo htmlspecialchars($sitin_id_number); ?>" placeholder="Enter ID Number" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Student Name:</label>
+                    <input type="text" class="form-control" id="sitin-student-name" value="<?php echo htmlspecialchars($sitin_student_name); ?>" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Purpose:</label>
+                    <input type="text" class="form-control" name="purpose" value="<?php echo htmlspecialchars($sitin_purpose); ?>" placeholder="e.g. C Programming" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Lab:</label>
+                    <input type="text" class="form-control" name="sit_lab" value="<?php echo htmlspecialchars($sitin_lab); ?>" placeholder="e.g. 524" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Remaining Session:</label>
+                    <input type="text" class="form-control" id="sitin-remaining-session" value="<?php echo htmlspecialchars($sitin_remaining_sessions); ?>" readonly>
+                </div>
+
+                <div class="sitin-modal-actions">
+                    <a href="admin_dashboard.php" class="admin-btn admin-btn-muted">Close</a>
+                    <button type="submit" class="admin-btn admin-btn-secondary">Sit In</button>
+                </div>
+            </form>
         <?php endif; ?>
     </div>
 </div>
+
+<script>
+(function () {
+    const idInput = document.getElementById('sitin-id-number');
+    const nameInput = document.getElementById('sitin-student-name');
+    const remainingInput = document.getElementById('sitin-remaining-session');
+
+    if (!idInput || !nameInput || !remainingInput) {
+        return;
+    }
+
+    let lookupTimer = null;
+
+    const fillEmpty = function () {
+        nameInput.value = '';
+        remainingInput.value = '';
+    };
+
+    const lookupStudent = function () {
+        const idNumber = idInput.value.trim();
+        if (idNumber === '') {
+            fillEmpty();
+            return;
+        }
+
+        const url = 'admin_dashboard.php?ajax=student_lookup&id_number=' + encodeURIComponent(idNumber);
+        fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data && data.found) {
+                    nameInput.value = data.name || '';
+                    remainingInput.value = data.remaining_sessions !== undefined ? String(data.remaining_sessions) : '';
+                } else {
+                    fillEmpty();
+                }
+            })
+            .catch(function () {
+                fillEmpty();
+            });
+    };
+
+    idInput.addEventListener('input', function () {
+        clearTimeout(lookupTimer);
+        lookupTimer = setTimeout(lookupStudent, 250);
+    });
+
+    idInput.addEventListener('blur', lookupStudent);
+})();
+</script>
 
 </body>
 </html>

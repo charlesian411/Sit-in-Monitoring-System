@@ -1,7 +1,7 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
-    header("Location: login.php");
+    header("Location: admin_login.php");
     exit();
 }
 
@@ -174,7 +174,7 @@ if ($res) {
         <li><a href="admin_dashboard.php">Home</a></li>
         <li><a href="admin_dashboard.php?open=search">Search</a></li>
         <li><a href="admin_students.php">Students</a></li>
-        <li><a href="admin_dashboard.php#sit-in-form">Sit-in</a></li>
+        <li><a href="admin_dashboard.php?open=sitin">Sit-in</a></li>
         <li><a href="admin_current_sitin.php">View Sit-in Records</a></li>
         <li><a href="admin_reservations.php">Reservations<?php if ($pending_count > 0): ?> <span class="badge-pill"><?php echo $pending_count; ?></span><?php endif; ?></a></li>
         <li><a href="logout.php" class="admin-logout-link">Log out</a></li>

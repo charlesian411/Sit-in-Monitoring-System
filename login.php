@@ -21,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (empty($id_number) || empty($password)) {
         $error = "Please fill in all fields.";
     } else {
-        $stmt = $conn->prepare("SELECT * FROM users WHERE id_number = ?");
+        $stmt = $conn->prepare("SELECT * FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
         $stmt->bind_param("s", $id_number);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -46,7 +46,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $error = "Invalid password.";
             }
         } else {
-            $error = "User not found.";
+            $error = "Student account not found.";
         }
         $stmt->close();
     }
@@ -74,7 +74,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
         </li>
         <li><a href="#">About</a></li>
-        <li><a href="login.php">Login</a></li>
+        <li><a href="login.php">Login Student</a></li>
+        <li><a href="admin_login.php">Admin Login</a></li>
         <li><a href="Register.php">Register</a></li>
     </ul>
 </nav>
@@ -119,6 +120,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <p class="register-prompt">
             Don't have an account? <a href="Register.php">Register</a>
+        </p>
+        <p class="register-prompt" style="margin-top:0.25rem;">
+            Admin? <a href="admin_login.php">Sign in here</a>
         </p>
 
     </div>
