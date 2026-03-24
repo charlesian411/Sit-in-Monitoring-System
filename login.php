@@ -4,7 +4,11 @@ session_start();
 
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
-    header("Location: dashboard.php");
+    if (!empty($_SESSION['is_admin'])) {
+        header("Location: admin_dashboard.php");
+    } else {
+        header("Location: dashboard.php");
+    }
     exit();
 }
 
@@ -26,9 +30,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $user = $result->fetch_assoc();
             if (password_verify($password, $user['password'])) {
                 $_SESSION['user_id'] = $user['id'];
+                $_SESSION['id_number'] = $user['id_number'];
                 $_SESSION['first_name'] = $user['first_name'];
                 $_SESSION['last_name'] = $user['last_name'];
-                header("Location: dashboard.php");
+                $_SESSION['role'] = isset($user['role']) ? $user['role'] : 'student';
+                $_SESSION['is_admin'] = ($_SESSION['role'] === 'admin');
+
+                if ($_SESSION['is_admin']) {
+                    header("Location: admin_dashboard.php");
+                } else {
+                    header("Location: dashboard.php");
+                }
                 exit();
             } else {
                 $error = "Invalid password.";

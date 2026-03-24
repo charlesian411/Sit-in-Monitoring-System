@@ -5,6 +5,11 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+if (!empty($_SESSION['is_admin'])) {
+    header("Location: admin_dashboard.php");
+    exit();
+}
+
 require_once 'config/db.php';
 
 $error = "";
@@ -133,6 +138,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <ul class="nav-links">
         <li><a href="dashboard.php">Home</a></li>
         <li><a href="edit_profile.php">Edit Profile</a></li>
+        <li><a href="reservation.php">Reservation</a></li>
         <li><a href="logout.php">Logout</a></li>
     </ul>
 </nav>

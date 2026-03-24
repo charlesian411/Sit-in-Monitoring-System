@@ -586,6 +586,582 @@ nav {
     border-color: var(--primary-hover);
 }
 
+/* ── ADMIN PAGES ── */
+.admin-top-nav {
+    padding: 0 0.85rem;
+}
+
+.admin-links {
+    gap: 0.25rem;
+}
+
+.admin-links a {
+    font-size: 0.68rem;
+    padding: 0.28rem 0.45rem;
+}
+
+.admin-logout-link {
+    background: #fbbf24 !important;
+    color: #111827 !important;
+}
+
+.admin-page {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 1.2rem 1rem 2rem;
+}
+
+.admin-page-title {
+    font-size: 2rem;
+    text-align: center;
+    color: #1f2937;
+    margin-bottom: 1rem;
+}
+
+.admin-alert {
+    margin-bottom: 0.9rem;
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+}
+
+.admin-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+.admin-card-title {
+    background: #1976d2;
+    color: #fff;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.admin-stat-list {
+    padding: 0.7rem 0.7rem 0.2rem;
+    font-size: 0.85rem;
+    color: #1f2937;
+}
+
+.admin-stat-list p {
+    margin-bottom: 0.5rem;
+}
+
+.mini-chart {
+    border-top: 1px solid #eef2f7;
+    padding: 0.65rem;
+}
+
+.chart-row {
+    display: grid;
+    grid-template-columns: 56px 1fr 30px;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.35rem;
+}
+
+.chart-label,
+.chart-value {
+    font-size: 0.75rem;
+    color: #374151;
+}
+
+.chart-track {
+    width: 100%;
+    height: 10px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.chart-bar {
+    height: 100%;
+    border-radius: inherit;
+}
+
+.bar-0 { background: #0ea5e9; }
+.bar-1 { background: #f43f5e; }
+.bar-2 { background: #f59e0b; }
+.bar-3 { background: #8b5cf6; }
+.bar-4 { background: #14b8a6; }
+
+.announcement-form {
+    padding: 0.7rem;
+}
+
+.announcement-form .form-control {
+    resize: vertical;
+    min-height: 72px;
+}
+
+.admin-btn {
+    border: none;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    padding: 0.45rem 0.75rem;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-family: inherit;
+}
+
+.admin-btn-primary {
+    background: #0ea5a5;
+    color: #fff;
+}
+
+.admin-btn-primary:hover {
+    background: #0d8b8b;
+}
+
+.admin-btn-secondary {
+    background: #2563eb;
+    color: #fff;
+}
+
+.admin-btn-secondary:hover {
+    background: #1d4ed8;
+}
+
+.admin-btn-danger {
+    background: #ef4444;
+    color: #fff;
+}
+
+.admin-btn-danger:hover {
+    background: #dc2626;
+}
+
+.admin-section-subtitle {
+    font-size: 2rem;
+    color: #1f2937;
+    font-weight: 700;
+    padding: 0.2rem 0.7rem 0.45rem;
+}
+
+.announcement-list {
+    padding: 0 0.7rem 0.7rem;
+    display: grid;
+    gap: 0.45rem;
+}
+
+.announcement-item {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 0.45rem;
+}
+
+.announcement-head {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.2rem;
+}
+
+.announcement-content {
+    font-size: 0.8rem;
+    color: #374151;
+    line-height: 1.45;
+}
+
+.sit-in-card {
+    margin-top: 0.9rem;
+}
+
+.sit-in-form-grid {
+    padding: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.7rem;
+    align-items: end;
+}
+
+.sit-in-form-grid .form-group {
+    margin-bottom: 0;
+}
+
+.sit-in-form-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-overlay.is-open {
+    display: flex;
+}
+
+.admin-modal {
+    width: 92%;
+    max-width: 540px;
+    background: #fff;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+    font-size: 1.65rem;
+    color: #1f2937;
+}
+
+.modal-close {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #9ca3af;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #111827;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.modal-search-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.6rem;
+    align-items: center;
+    padding: 0.75rem;
+}
+
+.search-result-box {
+    padding: 0 0.75rem 0.85rem;
+    font-size: 0.85rem;
+    color: #1f2937;
+}
+
+.search-result-box p {
+    margin-bottom: 0.35rem;
+}
+
+.empty-text {
+    color: #6b7280;
+    font-size: 0.82rem;
+}
+
+.students-toolbar {
+    display: flex;
+    gap: 0.45rem;
+    margin: 0.5rem 0 0.8rem;
+}
+
+.inline-form {
+    display: inline-flex;
+    margin: 0;
+}
+
+.admin-table-wrap {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: auto;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 780px;
+}
+
+.admin-table thead th {
+    text-align: left;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6b7280;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.58rem 0.6rem;
+}
+
+.admin-table tbody td {
+    border-bottom: 1px solid #eef2f7;
+    padding: 0.6rem;
+    font-size: 0.82rem;
+    color: #1f2937;
+}
+
+.students-table tbody tr:nth-child(even) {
+    background: #f9fafb;
+}
+
+.empty-table {
+    text-align: center !important;
+    color: #6b7280 !important;
+}
+
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.role-student {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.role-admin {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.badge-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.admin-notification-card {
+    margin-bottom: 0.85rem;
+}
+
+.reservation-notice-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.reservation-count-text {
+    font-size: 0.85rem;
+    color: #1f2937;
+}
+
+.reservation-mini-table-wrap {
+    border: none;
+    border-radius: 0;
+}
+
+.reservation-mini-table {
+    min-width: 700px;
+}
+
+.reservation-action-group {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.reservation-action-column {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.22rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-approved {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.student-reservation-page {
+    max-width: 980px;
+}
+
+.student-reservation-card {
+    margin-bottom: 0.85rem;
+}
+
+.student-reservation-form {
+    padding: 0.85rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.student-reservation-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.student-history-card .admin-table {
+    min-width: 820px;
+}
+
+.review-note {
+    min-width: 155px;
+    padding: 0.38rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.reservation-review-form {
+    gap: 0.35rem;
+}
+
+/* ── STUDENT DASHBOARD (ANNOUNCEMENT VIEW) ── */
+.student-dashboard-wrapper {
+    padding: 0.7rem;
+}
+
+.student-dashboard-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr 1fr;
+    gap: 0.7rem;
+    align-items: start;
+}
+
+.student-panel {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    min-height: 540px;
+}
+
+.student-panel-title {
+    background: #1d4f9a;
+    color: #fff;
+    font-size: 1.02rem;
+    font-weight: 600;
+    padding: 0.5rem 0.8rem;
+}
+
+.student-panel-body {
+    padding: 0.85rem;
+}
+
+.student-left-header .avatar {
+    margin: 0 auto 0.6rem;
+}
+
+.student-info-list {
+    border-top: 1px solid #e5e7eb;
+    margin-top: 0.55rem;
+    padding-top: 0.65rem;
+}
+
+.student-info-list p {
+    margin-bottom: 0.6rem;
+    font-size: 1.02rem;
+    color: #0f172a;
+}
+
+.student-actions-row {
+    justify-content: flex-start;
+    margin-top: 0.9rem;
+    flex-wrap: wrap;
+}
+
+.student-announcement-body {
+    max-height: 610px;
+    overflow-y: auto;
+}
+
+.student-announcement-item {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.5rem 0;
+}
+
+.student-announcement-item:last-child {
+    border-bottom: none;
+}
+
+.student-announcement-head {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.35rem;
+}
+
+.student-announcement-content {
+    font-size: 0.96rem;
+    color: #111827;
+    line-height: 1.5;
+}
+
+.student-rules-body {
+    max-height: 610px;
+    overflow-y: auto;
+    color: #0f172a;
+    line-height: 1.55;
+}
+
+.student-rules-body h3 {
+    text-align: center;
+    font-size: 1.8rem;
+    margin-bottom: 0.35rem;
+}
+
+.student-rules-body h4 {
+    text-align: center;
+    font-size: 1.3rem;
+    margin-bottom: 0.7rem;
+}
+
+.student-rules-body p,
+.student-rules-body li {
+    font-size: 0.95rem;
+}
+
+.student-rules-body ol {
+    padding-left: 1.15rem;
+}
+
+.student-rules-body li {
+    margin-bottom: 0.75rem;
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
     .register-body {
@@ -601,9 +1177,525 @@ nav {
     .info-grid {
         grid-template-columns: 1fr;
     }
+
+    .admin-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sit-in-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-page-title {
+        font-size: 1.45rem;
+    }
+
+    .admin-section-subtitle,
+    .modal-header h3 {
+        font-size: 1.2rem;
+    }
+
+    .reservation-notice-wrap {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .student-reservation-form {
+        grid-template-columns: 1fr;
+    }
+
+    .student-dashboard-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .student-announcement-head,
+    .student-announcement-content {
+        font-size: 0.95rem;
+    }
+
+    .student-rules-body h3 {
+        font-size: 1.2rem;
+    }
+
+    .student-rules-body h4 {
+        font-size: 1rem;
+    }
+
+    .student-rules-body p,
+    .student-rules-body li,
+    .student-info-list p {
+        font-size: 0.9rem;
+    }
 }
 
 @media (max-width: 480px) {
     .login-card { padding: 2rem 1.5rem 1.75rem; }
     .dashboard-card { padding: 2rem 1.5rem 1.75rem; }
+}
+
+/* ── SIMPLE STUDENT DASHBOARD ── */
+.student-dashboard-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.2rem;
+    font-family: 'Inter', sans-serif;
+}
+
+.dashboard-header-section {
+    margin-bottom: 2rem;
+}
+
+.user-profile-card {
+    background: #fff;
+    border: 1px solid #dde1e7;
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.user-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a3a6b 0%, #0ea5a5 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 600;
+    font-size: 1.8rem;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.user-avatar.avatar-photo {
+    background: #f0f0f0;
+    padding: 0;
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-initials {
+    color: #fff;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-info h1 {
+    margin: 0 0 0.3rem 0;
+    font-size: 1.5rem;
+    color: #1c2333;
+    font-weight: 600;
+}
+
+.user-course {
+    margin: 0.2rem 0;
+    font-size: 0.95rem;
+    color: #666;
+}
+
+.user-sessions {
+    margin: 0.3rem 0 0 0;
+    font-size: 1rem;
+    color: #1a3a6b;
+    font-weight: 500;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+
+.btn-simple {
+    padding: 0.6rem 1.2rem;
+    background: #1a3a6b;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.btn-simple:hover {
+    background: #0f2847;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.btn-logout-simple {
+    background: #dc2626;
+}
+
+.btn-logout-simple:hover {
+    background: #b91c1c;
+}
+
+.dashboard-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.content-card {
+    background: #fff;
+    border: 1px solid #dde1e7;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #1a3a6b 0%, #0ea5a5 100%);
+    color: #fff;
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid #1a3a6b;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.2rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.announcements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.announcement-item {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.announcement-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.announcement-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.author {
+    font-weight: 600;
+    color: #1a3a6b;
+}
+
+.date {
+    color: #999;
+    font-size: 0.85rem;
+}
+
+.announcement-text {
+    color: #1c2333;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.empty-state {
+    color: #999;
+    text-align: center;
+    padding: 2rem 1rem;
+    font-size: 0.95rem;
+}
+
+.rules-content h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    color: #1a3a6b;
+    text-align: center;
+}
+
+.rules-list {
+    margin: 0;
+    padding-left: 1.5rem;
+    color: #1c2333;
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+
+.rules-list li {
+    margin-bottom: 0.8rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .user-profile-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .header-actions {
+        justify-content: center;
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .dashboard-content {
+        grid-template-columns: 1fr;
+    }
+
+    .card-body {
+        max-height: 400px;
+    }
+}
+
+@media (max-width: 480px) {
+    .student-dashboard-wrapper {
+        padding: 0.8rem;
+    }
+
+    .user-profile-card {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .user-avatar {
+        width: 70px;
+        height: 70px;
+        font-size: 1.5rem;
+    }
+
+    .user-info h1 {
+        font-size: 1.2rem;
+    }
+
+    .btn-simple {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .card-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .card-body {
+        padding: 0.8rem;
+        max-height: 300px;
+    }
+}
+
+/* ── STUDENT DASHBOARD (SCREENSHOT STYLE) ── */
+.student-dashboard-nav {
+    background: #1f4f95;
+    padding: 0 0.9rem;
+    height: 56px;
+}
+
+.student-dashboard-nav .nav-brand {
+    font-size: 1.9rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.student-nav-links {
+    gap: 0.3rem;
+}
+
+.student-nav-links a,
+.student-nav-links button {
+    font-size: 1.65rem;
+    color: #ffffff;
+    padding: 0.38rem 0.6rem;
+}
+
+.student-nav-links a:hover,
+.student-nav-links button:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.student-nav-links .dropdown-menu a {
+    font-size: 0.84rem;
+}
+
+.student-logout-btn {
+    background: #ffc107 !important;
+    color: #111827 !important;
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 0.45rem 0.8rem !important;
+}
+
+.student-logout-btn:hover {
+    background: #f7b800 !important;
+}
+
+.student-dashboard-page {
+    max-width: 100%;
+    margin: 0;
+    padding: 0.9rem;
+}
+
+.student-dashboard-page .student-dashboard-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr 1fr;
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.student-dashboard-page .student-panel {
+    min-height: 545px;
+    border-radius: 6px;
+}
+
+.student-dashboard-page .student-panel-title {
+    background: #1f4f95;
+    font-size: 2.1rem;
+    text-align: center;
+    padding: 0.6rem 0.8rem;
+}
+
+.student-dashboard-page .student-panel-body {
+    background: #f5f5f5;
+    min-height: 490px;
+}
+
+.student-dashboard-page .student-left-header .avatar {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 2px solid #d1d5db;
+    overflow: hidden;
+    margin-top: 0.25rem;
+}
+
+.student-dashboard-page .student-left-header .avatar .avatar-img {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+}
+
+.student-info-icons {
+    border-top: 1px solid #cfd5de;
+    margin-top: 0.8rem;
+    padding-top: 0.85rem;
+}
+
+.student-info-icons p {
+    font-size: 2.2rem;
+    line-height: 1.45;
+}
+
+.student-announcement-body {
+    max-height: 490px;
+}
+
+.student-announcement-item {
+    padding: 0.95rem 0;
+}
+
+.student-announcement-head {
+    font-size: 2.2rem;
+    margin-bottom: 0.6rem;
+}
+
+.announcement-text-box {
+    background: #eceff3;
+    border: 1px solid #e1e5ea;
+    padding: 0.8rem 0.9rem;
+    border-radius: 2px;
+    min-height: 48px;
+}
+
+.student-dashboard-page .student-announcement-content {
+    font-size: 2rem;
+    line-height: 1.6;
+}
+
+.student-dashboard-page .student-rules-body {
+    max-height: 490px;
+}
+
+.student-dashboard-page .student-rules-body h3 {
+    font-size: 2.9rem;
+    margin: 0.2rem 0 0.45rem;
+}
+
+.student-dashboard-page .student-rules-body h4 {
+    font-size: 2.2rem;
+    margin-bottom: 0.95rem;
+}
+
+.student-dashboard-page .student-rules-body p,
+.student-dashboard-page .student-rules-body li {
+    font-size: 2rem;
+    line-height: 1.55;
+}
+
+@media (max-width: 1200px) {
+    .student-dashboard-nav .nav-brand {
+        font-size: 1.25rem;
+    }
+
+    .student-nav-links a,
+    .student-nav-links button {
+        font-size: 0.95rem;
+    }
+
+    .student-dashboard-page .student-panel-title {
+        font-size: 1.15rem;
+    }
+
+    .student-info-icons p,
+    .student-announcement-head,
+    .student-dashboard-page .student-announcement-content,
+    .student-dashboard-page .student-rules-body p,
+    .student-dashboard-page .student-rules-body li {
+        font-size: 0.96rem;
+    }
+
+    .student-dashboard-page .student-rules-body h3 {
+        font-size: 1.9rem;
+    }
+
+    .student-dashboard-page .student-rules-body h4 {
+        font-size: 1.25rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .student-dashboard-nav {
+        height: auto;
+        padding: 0.6rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.45rem;
+    }
+
+    .student-nav-links {
+        flex-wrap: wrap;
+    }
+
+    .student-dashboard-page .student-dashboard-layout {
+        grid-template-columns: 1fr;
+    }
 }
