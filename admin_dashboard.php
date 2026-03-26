@@ -348,49 +348,23 @@ foreach ($course_stats as $course_stat) {
 }
 
 $language_counts = [
-    'C' => 0,
     'C#' => 0,
-    'C++' => 0,
-    'Java' => 0,
     'Python' => 0,
-    'PHP' => 0,
     'JavaScript' => 0,
+    'Java' => 0,
     'TypeScript' => 0,
-    'ASP.Net' => 0,
-    'Visual Basic' => 0,
-    'SQL' => 0,
-    'Go' => 0,
-    'Rust' => 0,
-    'Kotlin' => 0,
-    'Swift' => 0,
-    'Ruby' => 0,
-    'R' => 0,
-    'MATLAB' => 0,
-    'Perl' => 0,
-    'Dart' => 0,
-    'Other' => 0
+    'PHP' => 0,
+    'C++' => 0
 ];
 
 $language_keywords = [
     'C#' => ['c#', 'csharp'],
-    'C++' => ['c++', 'cpp'],
-    'Java' => ['java'],
     'Python' => ['python'],
-    'PHP' => ['php'],
     'JavaScript' => ['javascript'],
+    'Java' => ['java'],
     'TypeScript' => ['typescript'],
-    'ASP.Net' => ['asp.net', 'asp net', 'aspnet'],
-    'Visual Basic' => ['visual basic', 'vb.net', 'vb net'],
-    'SQL' => ['sql', 'mysql', 'postgres', 'postgresql', 'sqlite', 'mariadb'],
-    'Go' => [' golang ', ' go language ', ' go '],
-    'Rust' => ['rust'],
-    'Kotlin' => ['kotlin'],
-    'Swift' => ['swift'],
-    'Ruby' => ['ruby'],
-    'R' => [' r language ', ' language r '],
-    'MATLAB' => ['matlab'],
-    'Perl' => ['perl'],
-    'Dart' => ['dart']
+    'PHP' => ['php'],
+    'C++' => ['c++', 'cpp']
 ];
 
 $language_res = $conn->query("SELECT purpose FROM sit_in_records");
@@ -402,31 +376,13 @@ if ($language_res) {
         }
 
         $purpose_scan_text = ' ' . $purpose_text . ' ';
-        $matched_any = false;
-
         foreach ($language_keywords as $language_label => $keywords) {
-            $matched_label = false;
             foreach ($keywords as $keyword) {
                 if (strpos($purpose_scan_text, $keyword) !== false) {
                     $language_counts[$language_label]++;
-                    $matched_label = true;
-                    $matched_any = true;
                     break;
                 }
             }
-
-            if ($matched_label) {
-                continue;
-            }
-        }
-
-        if (preg_match('/(^|[^a-z0-9])c($|[^a-z0-9#+])/', $purpose_text)) {
-            $language_counts['C']++;
-            $matched_any = true;
-        }
-
-        if (!$matched_any) {
-            $language_counts['Other']++;
         }
     }
 }

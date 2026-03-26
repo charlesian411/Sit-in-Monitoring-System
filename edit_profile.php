@@ -62,9 +62,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         } elseif ($_FILES['profile_image']['size'] > 2 * 1024 * 1024) {
             $error = "Profile image must be 2MB or less.";
         } else {
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime_type = finfo_file($finfo, $_FILES['profile_image']['tmp_name']);
-            finfo_close($finfo);
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime_type = $finfo->file($_FILES['profile_image']['tmp_name']);
 
             $allowed_types = [
                 "image/jpeg" => "jpg",
