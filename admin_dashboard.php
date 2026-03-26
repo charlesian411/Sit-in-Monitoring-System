@@ -11,17 +11,24 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'student_lookup') {
     header('Content-Type: application/json');
 
     $lookup_id_number = trim($_GET['id_number'] ?? '');
+    $lookup_student_name = trim($_GET['student_name'] ?? '');
     if ($lookup_id_number === '') {
-        echo json_encode([
-            'found' => false,
-            'name' => '',
-            'remaining_sessions' => ''
-        ]);
-        exit();
-    }
+        if ($lookup_student_name === '') {
+            echo json_encode([
+                'found' => false,
+                'name' => '',
+                'remaining_sessions' => ''
+            ]);
+            exit();
+        }
 
-    $lookup_stmt = $conn->prepare("SELECT id, first_name, middle_name, last_name FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
-    $lookup_stmt->bind_param("s", $lookup_id_number);
+        $lookup_name_like = '%' . $lookup_student_name . '%';
+        $lookup_stmt = $conn->prepare("SELECT id, first_name, middle_name, last_name, id_number FROM users WHERE role = 'student' AND CONCAT(first_name, ' ', COALESCE(NULLIF(middle_name, ''), ''), ' ', last_name) LIKE ? ORDER BY first_name ASC, last_name ASC LIMIT 1");
+        $lookup_stmt->bind_param("s", $lookup_name_like);
+    } else {
+        $lookup_stmt = $conn->prepare("SELECT id, first_name, middle_name, last_name, id_number FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
+        $lookup_stmt->bind_param("s", $lookup_id_number);
+    }
     $lookup_stmt->execute();
     $lookup_res = $lookup_stmt->get_result();
     $lookup_user = $lookup_res->fetch_assoc();
@@ -50,6 +57,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'student_lookup') {
 
     echo json_encode([
         'found' => true,
+        'id_number' => (string) ($lookup_user['id_number'] ?? ''),
         'name' => $lookup_name,
         'remaining_sessions' => $lookup_remaining_sessions
     ]);
@@ -98,6 +106,9 @@ $alert_message = "";
 $alert_type = "success";
 $search_result = null;
 
+$purpose_options = ['C#', 'Python', 'JavaScript', 'Java', 'TypeScript', 'PHP', 'C++'];
+$lab_options = ['524', '526', '528', '530', '542', '544'];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = isset($_POST['action']) ? $_POST['action'] : '';
 
@@ -128,6 +139,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($id_number === '' || $purpose === '' || $sit_lab === '') {
             $alert_message = "Please complete all Sit-in fields.";
+            $alert_type = "error";
+        } elseif (!ctype_digit($id_number)) {
+            $alert_message = "ID Number must contain numbers only.";
+            $alert_type = "error";
+        } elseif (!in_array($purpose, $purpose_options, true)) {
+            $alert_message = "Invalid purpose selected.";
+            $alert_type = "error";
+        } elseif (!in_array($sit_lab, $lab_options, true)) {
+            $alert_message = "Invalid laboratory selected.";
             $alert_type = "error";
         } else {
             $student_stmt = $conn->prepare("SELECT id, first_name, middle_name, last_name FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
@@ -265,8 +285,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if (isset($_GET['search_id']) && trim($_GET['search_id']) !== '') {
     $search_id = trim($_GET['search_id']);
-    $search_stmt = $conn->prepare("SELECT id, id_number, first_name, middle_name, last_name, course, course_level FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
-    $search_stmt->bind_param("s", $search_id);
+
+    if (ctype_digit($search_id)) {
+        $search_stmt = $conn->prepare("SELECT id, id_number, first_name, middle_name, last_name, course, course_level FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
+        $search_stmt->bind_param("s", $search_id);
+    } else {
+        $search_like = '%' . $search_id . '%';
+        $search_stmt = $conn->prepare("SELECT id, id_number, first_name, middle_name, last_name, course, course_level FROM users WHERE role = 'student' AND CONCAT(first_name, ' ', COALESCE(NULLIF(middle_name, ''), ''), ' ', last_name) LIKE ? ORDER BY first_name ASC, last_name ASC LIMIT 1");
+        $search_stmt->bind_param("s", $search_like);
+    }
+
     $search_stmt->execute();
     $search_res = $search_stmt->get_result();
     $search_result = $search_res->fetch_assoc();
@@ -290,11 +318,13 @@ $sitin_purpose = trim($_POST['purpose'] ?? '');
 $sitin_lab = trim($_POST['sit_lab'] ?? '');
 $sitin_student_name = '';
 $sitin_remaining_sessions = '';
+$lock_sitin_id = (($_POST['lock_sitin_id'] ?? '') === '1');
 
 if ($search_result) {
     $sitin_id_number = $search_result['id_number'];
     $sitin_student_name = trim($search_result['first_name'] . ' ' . ($search_result['middle_name'] ? $search_result['middle_name'] . ' ' : '') . $search_result['last_name']);
     $sitin_remaining_sessions = (string) ((int) ($search_result['remaining_sessions'] ?? 0));
+    $lock_sitin_id = true;
 } elseif ($sitin_id_number !== '') {
     $sitin_user_stmt = $conn->prepare("SELECT id, first_name, middle_name, last_name FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
     $sitin_user_stmt->bind_param("s", $sitin_id_number);
@@ -443,8 +473,8 @@ if ($search_result) {
         <li><a href="admin_dashboard.php">Home</a></li>
         <li><a href="admin_dashboard.php?open=search">Search</a></li>
         <li><a href="admin_students.php">Students</a></li>
-        <li><a href="admin_dashboard.php?open=sitin">Sit-in</a></li>
-        <li><a href="admin_current_sitin.php">View Sit-in Records</a></li>
+        <li><a href="admin_current_sitin.php">Active Session</a></li>
+        <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
         <li><a href="admin_reservations.php">Reservations<?php if ($pending_count > 0): ?> <span class="badge-pill"><?php echo $pending_count; ?></span><?php endif; ?></a></li>
         <li><a href="logout.php" class="admin-logout-link">Log out</a></li>
     </ul>
@@ -550,9 +580,9 @@ if ($search_result) {
 
             <form method="GET" class="modal-search-form">
                 <input type="hidden" name="open" value="search">
-                <label class="form-label" for="search-student-id">ID Number</label>
+                <label class="form-label" for="search-student-id">ID Number or Student Name</label>
                 <div class="modal-search-row">
-                    <input type="text" id="search-student-id" name="search_id" class="form-control" placeholder="Enter ID Number" value="<?php echo htmlspecialchars($_GET['search_id'] ?? ''); ?>">
+                    <input type="text" id="search-student-id" name="search_id" class="form-control" placeholder="Enter ID Number or Student Name" value="<?php echo htmlspecialchars($_GET['search_id'] ?? ''); ?>">
                     <button type="submit" class="admin-btn admin-btn-secondary">Search</button>
                 </div>
             </form>
@@ -570,25 +600,36 @@ if ($search_result) {
 
             <form method="POST" class="sitin-modal-form">
                 <input type="hidden" name="action" value="add_sit_in">
+                <input type="hidden" name="lock_sitin_id" value="<?php echo $lock_sitin_id ? '1' : '0'; ?>">
 
                 <div class="form-group">
                     <label class="form-label">ID Number:</label>
-                    <input type="text" class="form-control" id="sitin-id-number" name="id_number" value="<?php echo htmlspecialchars($sitin_id_number); ?>" placeholder="Enter ID Number" required>
+                    <input type="text" class="form-control" id="sitin-id-number" name="id_number" value="<?php echo htmlspecialchars($sitin_id_number); ?>" placeholder="Enter ID Number" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'');" <?php echo $lock_sitin_id ? 'readonly' : ''; ?> required>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Student Name:</label>
-                    <input type="text" class="form-control" id="sitin-student-name" value="<?php echo htmlspecialchars($sitin_student_name); ?>" readonly>
+                    <input type="text" class="form-control" id="sitin-student-name" value="<?php echo htmlspecialchars($sitin_student_name); ?>" placeholder="Enter Student Name" <?php echo $lock_sitin_id ? 'readonly' : ''; ?>>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Purpose:</label>
-                    <input type="text" class="form-control" name="purpose" value="<?php echo htmlspecialchars($sitin_purpose); ?>" placeholder="e.g. C Programming" required>
+                    <select class="form-control" name="purpose" required>
+                        <option value="" <?php echo $sitin_purpose === '' ? 'selected' : ''; ?> disabled>Select Purpose</option>
+                        <?php foreach ($purpose_options as $purpose_option): ?>
+                            <option value="<?php echo htmlspecialchars($purpose_option); ?>" <?php echo $sitin_purpose === $purpose_option ? 'selected' : ''; ?>><?php echo htmlspecialchars($purpose_option); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Lab:</label>
-                    <input type="text" class="form-control" name="sit_lab" value="<?php echo htmlspecialchars($sitin_lab); ?>" placeholder="e.g. 524" required>
+                    <select class="form-control" name="sit_lab" required>
+                        <option value="" <?php echo $sitin_lab === '' ? 'selected' : ''; ?> disabled>Select Laboratory</option>
+                        <?php foreach ($lab_options as $lab_option): ?>
+                            <option value="<?php echo htmlspecialchars($lab_option); ?>" <?php echo $sitin_lab === $lab_option ? 'selected' : ''; ?>><?php echo htmlspecialchars($lab_option); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -610,6 +651,7 @@ if ($search_result) {
     const idInput = document.getElementById('sitin-id-number');
     const nameInput = document.getElementById('sitin-student-name');
     const remainingInput = document.getElementById('sitin-remaining-session');
+    const isLocked = idInput && idInput.hasAttribute('readonly');
 
     if (!idInput || !nameInput || !remainingInput) {
         return;
@@ -618,7 +660,9 @@ if ($search_result) {
     let lookupTimer = null;
 
     const fillEmpty = function () {
-        nameInput.value = '';
+        if (!isLocked) {
+            nameInput.value = '';
+        }
         remainingInput.value = '';
     };
 
@@ -645,12 +689,48 @@ if ($search_result) {
             });
     };
 
+    const lookupByName = function () {
+        const studentName = nameInput.value.trim();
+        if (studentName === '') {
+            idInput.value = '';
+            remainingInput.value = '';
+            return;
+        }
+
+        const url = 'admin_dashboard.php?ajax=student_lookup&student_name=' + encodeURIComponent(studentName);
+        fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data && data.found) {
+                    idInput.value = data.id_number || '';
+                    nameInput.value = data.name || studentName;
+                    remainingInput.value = data.remaining_sessions !== undefined ? String(data.remaining_sessions) : '';
+                } else {
+                    idInput.value = '';
+                    remainingInput.value = '';
+                }
+            })
+            .catch(function () {
+                idInput.value = '';
+                remainingInput.value = '';
+            });
+    };
+
     idInput.addEventListener('input', function () {
         clearTimeout(lookupTimer);
         lookupTimer = setTimeout(lookupStudent, 250);
     });
 
     idInput.addEventListener('blur', lookupStudent);
+
+    if (!isLocked) {
+        nameInput.addEventListener('input', function () {
+            clearTimeout(lookupTimer);
+            lookupTimer = setTimeout(lookupByName, 250);
+        });
+
+        nameInput.addEventListener('blur', lookupByName);
+    }
 })();
 </script>
 

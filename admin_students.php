@@ -140,8 +140,8 @@ if (isset($_GET['view_student'])) {
         <li><a href="admin_dashboard.php">Home</a></li>
         <li><a href="admin_dashboard.php?open=search">Search</a></li>
         <li><a href="admin_students.php">Students</a></li>
-        <li><a href="admin_dashboard.php?open=sitin">Sit-in</a></li>
-        <li><a href="admin_current_sitin.php">View Sit-in Records</a></li>
+        <li><a href="admin_current_sitin.php">Active Session</a></li>
+        <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
         <li><a href="admin_reservations.php">Reservations</a></li>
         <li><a href="logout.php" class="admin-logout-link">Log out</a></li>
     </ul>

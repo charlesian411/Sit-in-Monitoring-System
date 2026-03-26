@@ -17,27 +17,8 @@ $conn->query("CREATE TABLE IF NOT EXISTS sit_in_records (
     ended_at TIMESTAMP NULL,
     INDEX idx_sit_in_user (user_id),
     INDEX idx_sit_in_status (status),
-    CONSTRAINT fk_sit_in_user_current FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_sit_in_user_history FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )");
-
-$alert_message = "";
-$alert_type = "success";
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'end_sitin') {
-    $record_id = (int) ($_POST['record_id'] ?? 0);
-    if ($record_id > 0) {
-        $stmt = $conn->prepare("UPDATE sit_in_records SET status = 'completed', ended_at = NOW() WHERE id = ? AND status = 'active'");
-        $stmt->bind_param("i", $record_id);
-        if ($stmt->execute() && $stmt->affected_rows > 0) {
-            $alert_message = "Sit-in session completed.";
-            $alert_type = "success";
-        } else {
-            $alert_message = "Unable to update sit-in status.";
-            $alert_type = "error";
-        }
-        $stmt->close();
-    }
-}
 
 $records = [];
 $sql = "SELECT
@@ -47,6 +28,7 @@ $sql = "SELECT
             s.sit_lab,
             s.status,
             s.started_at,
+            s.ended_at,
             u.id_number,
             u.first_name,
             u.middle_name,
@@ -58,7 +40,6 @@ $sql = "SELECT
             ) AS session_number
         FROM sit_in_records s
         INNER JOIN users u ON u.id = s.user_id
-        WHERE s.status = 'active'
         ORDER BY s.started_at DESC";
 $res = $conn->query($sql);
 if ($res) {
@@ -72,8 +53,8 @@ if ($res) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CCS | Current Sit In</title>
-    <link rel="stylesheet" href="style.css?v=4">
+    <title>CCS | Sit-in Records</title>
+    <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 
@@ -91,11 +72,7 @@ if ($res) {
 </nav>
 
 <div class="admin-page">
-    <h1 class="admin-page-title">Active Session</h1>
-
-    <?php if ($alert_message !== ''): ?>
-        <div class="alert <?php echo $alert_type === 'error' ? 'alert-error' : 'alert-success'; ?> admin-alert"><?php echo htmlspecialchars($alert_message); ?></div>
-    <?php endif; ?>
+    <h1 class="admin-page-title">Sit-in Records History</h1>
 
     <div class="admin-table-wrap">
         <table class="admin-table students-table">
@@ -106,10 +83,10 @@ if ($res) {
                     <th>Name</th>
                     <th>Purpose</th>
                     <th>Sit Lab</th>
-                    <th>Started At</th>
                     <th>Session #</th>
                     <th>Status</th>
-                    <th>Actions</th>
+                    <th>Started At</th>
+                    <th>Ended At</th>
                 </tr>
             </thead>
             <tbody>
@@ -125,16 +102,16 @@ if ($res) {
                             <td><?php echo htmlspecialchars($record['first_name'] . ' ' . ($record['middle_name'] ? $record['middle_name'] . ' ' : '') . $record['last_name']); ?></td>
                             <td><?php echo htmlspecialchars($record['purpose']); ?></td>
                             <td><?php echo htmlspecialchars($record['sit_lab']); ?></td>
-                            <td><?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($record['started_at']))); ?></td>
                             <td><?php echo (int) $record['session_number']; ?></td>
-                            <td><span class="role-badge role-student">Active</span></td>
                             <td>
-                                <form method="POST" class="inline-form" onsubmit="return confirm('Mark this sit-in as completed?');">
-                                    <input type="hidden" name="action" value="end_sitin">
-                                    <input type="hidden" name="record_id" value="<?php echo (int) $record['id']; ?>">
-                                    <button type="submit" class="admin-btn admin-btn-secondary">End</button>
-                                </form>
+                                <?php if ($record['status'] === 'active'): ?>
+                                    <span class="role-badge role-student">Active</span>
+                                <?php else: ?>
+                                    <span class="status-badge status-approved">Completed</span>
+                                <?php endif; ?>
                             </td>
+                            <td><?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($record['started_at']))); ?></td>
+                            <td><?php echo $record['ended_at'] ? htmlspecialchars(date('M d, Y h:i A', strtotime($record['ended_at']))) : '-'; ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
