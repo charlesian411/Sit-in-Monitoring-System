@@ -75,20 +75,35 @@ for ($pc_index = 1; $pc_index <= 40; $pc_index++) {
     $pc_options[] = 'PC' . $pc_index;
 }
 
-$unavailable_pcs = [];
-$pc_res = $conn->query("SELECT DISTINCT pc_number FROM sit_in_records WHERE status = 'active' AND pc_number IS NOT NULL AND pc_number <> ''");
+$unavailable_pcs_by_lab = [];
+foreach ($lab_options as $lab_option) {
+    $unavailable_pcs_by_lab[$lab_option] = [];
+}
+
+$pc_res = $conn->query("SELECT sit_lab, pc_number FROM sit_in_records WHERE status = 'active' AND pc_number IS NOT NULL AND pc_number <> ''");
 if ($pc_res) {
     while ($pc_row = $pc_res->fetch_assoc()) {
-        $unavailable_pcs[strtoupper(trim((string) $pc_row['pc_number']))] = true;
+        $row_lab = trim((string) ($pc_row['sit_lab'] ?? ''));
+        $row_pc = strtoupper(trim((string) ($pc_row['pc_number'] ?? '')));
+        if ($row_lab !== '' && in_array($row_lab, $lab_options, true) && $row_pc !== '') {
+            $unavailable_pcs_by_lab[$row_lab][$row_pc] = true;
+        }
     }
 }
 
-$pending_pc_res = $conn->query("SELECT DISTINCT pc_number FROM reservations WHERE status = 'pending' AND pc_number IS NOT NULL AND pc_number <> ''");
+$pending_pc_res = $conn->query("SELECT sit_lab, pc_number FROM reservations WHERE status = 'pending' AND pc_number IS NOT NULL AND pc_number <> ''");
 if ($pending_pc_res) {
     while ($pending_pc_row = $pending_pc_res->fetch_assoc()) {
-        $unavailable_pcs[strtoupper(trim((string) $pending_pc_row['pc_number']))] = true;
+        $row_lab = trim((string) ($pending_pc_row['sit_lab'] ?? ''));
+        $row_pc = strtoupper(trim((string) ($pending_pc_row['pc_number'] ?? '')));
+        if ($row_lab !== '' && in_array($row_lab, $lab_options, true) && $row_pc !== '') {
+            $unavailable_pcs_by_lab[$row_lab][$row_pc] = true;
+        }
     }
 }
+
+$selected_lab_for_pc = in_array($sit_lab, $lab_options, true) ? $sit_lab : '';
+$unavailable_pcs = $selected_lab_for_pc !== '' ? ($unavailable_pcs_by_lab[$selected_lab_for_pc] ?? []) : [];
 
 $feedback_column_check = $conn->query("SHOW COLUMNS FROM sit_in_records LIKE 'feedback'");
 if ($feedback_column_check && $feedback_column_check->num_rows === 0) {
@@ -227,7 +242,7 @@ $list_stmt->close();
 
             <div class="form-group">
                 <label class="form-label">Lab</label>
-                <select class="form-control" name="sit_lab" required>
+                <select class="form-control" name="sit_lab" id="sit_lab" required>
                     <option value="" disabled <?php echo $sit_lab === '' ? 'selected' : ''; ?>>Select Lab</option>
                     <?php foreach ($lab_options as $lab_option): ?>
                         <option value="<?php echo htmlspecialchars($lab_option); ?>" <?php echo $sit_lab === $lab_option ? 'selected' : ''; ?>><?php echo htmlspecialchars($lab_option); ?></option>
@@ -235,7 +250,7 @@ $list_stmt->close();
                 </select>
             </div>
 
-            <div class="form-group" style="grid-column: 1 / -1;">
+            <div class="form-group" id="pc-select-group" style="grid-column: 1 / -1; <?php echo $selected_lab_for_pc === '' ? 'display:none;' : ''; ?>">
                 <label class="form-label">Select PC</label>
                 <input type="hidden" name="pc_number" id="pc_number" value="<?php echo htmlspecialchars($pc_number); ?>" required>
                 <div class="pc-grid" id="pc-grid">
@@ -251,7 +266,11 @@ $list_stmt->close();
                         </button>
                     <?php endforeach; ?>
                 </div>
-                <p class="form-help" style="margin-top:0.45rem;">Green = available, Red = not available</p>
+                <p class="form-help" style="margin-top:0.45rem;">Green = available, Red = not available (per selected laboratory)</p>
+            </div>
+
+            <div class="form-group" id="pc-select-hint" style="grid-column: 1 / -1; <?php echo $selected_lab_for_pc === '' ? '' : 'display:none;'; ?>">
+                <p class="form-help" style="margin-top:0.25rem;">Select a laboratory first to show available PC numbers.</p>
             </div>
 
             <div class="form-group">
@@ -313,11 +332,61 @@ $list_stmt->close();
 
 <script>
 (function () {
+    var unavailableByLab = <?php echo json_encode($unavailable_pcs_by_lab); ?> || {};
+    var labSelect = document.getElementById('sit_lab');
+    var pcGroup = document.getElementById('pc-select-group');
+    var pcHint = document.getElementById('pc-select-hint');
     var pcGrid = document.getElementById('pc-grid');
     var pcInput = document.getElementById('pc_number');
-    if (!pcGrid || !pcInput) {
+    if (!labSelect || !pcGroup || !pcHint || !pcGrid || !pcInput) {
         return;
     }
+
+    function togglePcSection() {
+        var hasLab = !!labSelect.value;
+        pcGroup.style.display = hasLab ? '' : 'none';
+        pcHint.style.display = hasLab ? 'none' : '';
+
+        if (!hasLab) {
+            pcInput.value = '';
+            var allChips = pcGrid.querySelectorAll('.pc-chip');
+            allChips.forEach(function (chip) {
+                chip.classList.remove('pc-selected');
+            });
+        }
+    }
+
+    function applyLabPcAvailability() {
+        var selectedLab = labSelect.value || '';
+        var blocked = unavailableByLab[selectedLab] || {};
+        var allChips = pcGrid.querySelectorAll('.pc-chip');
+
+        allChips.forEach(function (chip) {
+            var chipPc = chip.getAttribute('data-pc') || '';
+            var isBlocked = !!blocked[chipPc];
+
+            chip.disabled = isBlocked;
+            chip.classList.remove('pc-available', 'pc-unavailable');
+            chip.classList.add(isBlocked ? 'pc-unavailable' : 'pc-available');
+
+            if (isBlocked) {
+                chip.classList.remove('pc-selected');
+                if (pcInput.value === chipPc) {
+                    pcInput.value = '';
+                }
+            }
+        });
+    }
+
+    labSelect.addEventListener('change', function () {
+        pcInput.value = '';
+        var allChips = pcGrid.querySelectorAll('.pc-chip');
+        allChips.forEach(function (chip) {
+            chip.classList.remove('pc-selected');
+        });
+        applyLabPcAvailability();
+        togglePcSection();
+    });
 
     pcGrid.addEventListener('click', function (event) {
         var target = event.target;
@@ -333,6 +402,9 @@ $list_stmt->close();
         target.classList.add('pc-selected');
         pcInput.value = target.getAttribute('data-pc') || '';
     });
+
+    applyLabPcAvailability();
+    togglePcSection();
 })();
 </script>
 

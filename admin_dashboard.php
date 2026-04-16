@@ -126,6 +126,37 @@ $search_result = null;
 
 $purpose_options = ['C#', 'Python', 'JavaScript', 'Java', 'TypeScript', 'PHP', 'C++'];
 $lab_options = ['524', '526', '528', '530', '542', '544'];
+$pc_options = [];
+for ($pc_index = 1; $pc_index <= 40; $pc_index++) {
+    $pc_options[] = 'PC' . $pc_index;
+}
+
+$unavailable_pcs_by_lab = [];
+foreach ($lab_options as $lab_option) {
+    $unavailable_pcs_by_lab[$lab_option] = [];
+}
+
+$pc_res = $conn->query("SELECT sit_lab, pc_number FROM sit_in_records WHERE status = 'active' AND pc_number IS NOT NULL AND pc_number <> ''");
+if ($pc_res) {
+    while ($pc_row = $pc_res->fetch_assoc()) {
+        $row_lab = trim((string) ($pc_row['sit_lab'] ?? ''));
+        $row_pc = strtoupper(trim((string) ($pc_row['pc_number'] ?? '')));
+        if ($row_lab !== '' && in_array($row_lab, $lab_options, true) && $row_pc !== '') {
+            $unavailable_pcs_by_lab[$row_lab][$row_pc] = true;
+        }
+    }
+}
+
+$pending_pc_res = $conn->query("SELECT sit_lab, pc_number FROM reservations WHERE status = 'pending' AND pc_number IS NOT NULL AND pc_number <> ''");
+if ($pending_pc_res) {
+    while ($pending_pc_row = $pending_pc_res->fetch_assoc()) {
+        $row_lab = trim((string) ($pending_pc_row['sit_lab'] ?? ''));
+        $row_pc = strtoupper(trim((string) ($pending_pc_row['pc_number'] ?? '')));
+        if ($row_lab !== '' && in_array($row_lab, $lab_options, true) && $row_pc !== '') {
+            $unavailable_pcs_by_lab[$row_lab][$row_pc] = true;
+        }
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = isset($_POST['action']) ? $_POST['action'] : '';
@@ -154,8 +185,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id_number = trim($_POST['id_number'] ?? '');
         $purpose = trim($_POST['purpose'] ?? '');
         $sit_lab = trim($_POST['sit_lab'] ?? '');
+        $pc_number = strtoupper(trim($_POST['pc_number'] ?? ''));
 
-        if ($id_number === '' || $purpose === '' || $sit_lab === '') {
+        $unavailable_pcs = in_array($sit_lab, $lab_options, true) ? ($unavailable_pcs_by_lab[$sit_lab] ?? []) : [];
+
+        if ($id_number === '' || $purpose === '' || $sit_lab === '' || $pc_number === '') {
             $alert_message = "Please complete all Sit-in fields.";
             $alert_type = "error";
         } elseif (!ctype_digit($id_number)) {
@@ -166,6 +200,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $alert_type = "error";
         } elseif (!in_array($sit_lab, $lab_options, true)) {
             $alert_message = "Invalid laboratory selected.";
+            $alert_type = "error";
+        } elseif (!in_array($pc_number, $pc_options, true)) {
+            $alert_message = "Invalid PC selected.";
+            $alert_type = "error";
+        } elseif (isset($unavailable_pcs[$pc_number])) {
+            $alert_message = $pc_number . " is not available in Lab " . $sit_lab . ".";
             $alert_type = "error";
         } else {
             $student_stmt = $conn->prepare("SELECT id, first_name, middle_name, last_name FROM users WHERE id_number = ? AND role = 'student' LIMIT 1");
@@ -200,11 +240,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $alert_message = "This student has no remaining sessions.";
                     $alert_type = "error";
                 } else {
-                    $insert_stmt = $conn->prepare("INSERT INTO sit_in_records (user_id, purpose, sit_lab, status) VALUES (?, ?, ?, 'active')");
-                    $insert_stmt->bind_param("iss", $user_id, $purpose, $sit_lab);
+                    $insert_stmt = $conn->prepare("INSERT INTO sit_in_records (user_id, purpose, sit_lab, pc_number, status) VALUES (?, ?, ?, ?, 'active')");
+                    $insert_stmt->bind_param("isss", $user_id, $purpose, $sit_lab, $pc_number);
                     if ($insert_stmt->execute()) {
-                        $alert_message = "Sit-in recorded successfully.";
-                        $alert_type = "success";
+                        $insert_stmt->close();
+                        header("Location: admin_current_sitin.php");
+                        exit();
                     } else {
                         $alert_message = "Unable to record Sit-in.";
                         $alert_type = "error";
@@ -334,9 +375,12 @@ if (isset($_GET['search_id']) && trim($_GET['search_id']) !== '') {
 $sitin_id_number = trim($_POST['id_number'] ?? ($_GET['search_id'] ?? ''));
 $sitin_purpose = trim($_POST['purpose'] ?? '');
 $sitin_lab = trim($_POST['sit_lab'] ?? '');
+$sitin_pc_number = strtoupper(trim($_POST['pc_number'] ?? ''));
 $sitin_student_name = '';
 $sitin_remaining_sessions = '';
 $lock_sitin_id = (($_POST['lock_sitin_id'] ?? '') === '1');
+$selected_sitin_lab_for_pc = in_array($sitin_lab, $lab_options, true) ? $sitin_lab : '';
+$sitin_unavailable_pcs = $selected_sitin_lab_for_pc !== '' ? ($unavailable_pcs_by_lab[$selected_sitin_lab_for_pc] ?? []) : [];
 
 if ($search_result) {
     $sitin_id_number = $search_result['id_number'];
@@ -482,6 +526,15 @@ if ($search_result) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Admin Dashboard</title>
     <link rel="stylesheet" href="style.css?v=11">
+    <style>
+        #search-modal .admin-modal { max-height: 92vh; overflow-y: auto; }
+        .pc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 0.5rem; margin-top: 0.4rem; }
+        .pc-grid-wrap { max-height: 220px; overflow-y: auto; padding-right: 0.25rem; }
+        .pc-chip { border: 1px solid #d1d5db; border-radius: 8px; padding: 0.45rem 0.35rem; font-size: 0.85rem; text-align: center; cursor: pointer; user-select: none; }
+        .pc-available { background: #dcfce7; border-color: #22c55e; color: #166534; }
+        .pc-unavailable { background: #fee2e2; border-color: #ef4444; color: #991b1b; cursor: not-allowed; opacity: 0.8; }
+        .pc-selected { outline: 2px solid #2563eb; font-weight: 600; }
+    </style>
 </head>
 <body>
 
@@ -490,7 +543,6 @@ if ($search_result) {
     <ul class="nav-links admin-links">
         <li><a href="admin_dashboard.php">Home</a></li>
         <li><a href="admin_dashboard.php?open=search">Search</a></li>
-        <li><a href="admin_dashboard.php?open=sitin">Sit In</a></li>
         <li><a href="admin_students.php">Students</a></li>
         <li><a href="admin_current_sitin.php">View Current Sitin</a></li>
         <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
@@ -644,12 +696,37 @@ if ($search_result) {
 
                 <div class="form-group">
                     <label class="form-label">Lab:</label>
-                    <select class="form-control" name="sit_lab" required>
+                    <select class="form-control" name="sit_lab" id="sitin-lab" required>
                         <option value="" <?php echo $sitin_lab === '' ? 'selected' : ''; ?> disabled>Select Laboratory</option>
                         <?php foreach ($lab_options as $lab_option): ?>
                             <option value="<?php echo htmlspecialchars($lab_option); ?>" <?php echo $sitin_lab === $lab_option ? 'selected' : ''; ?>><?php echo htmlspecialchars($lab_option); ?></option>
                         <?php endforeach; ?>
                     </select>
+                </div>
+
+                <div class="form-group" id="sitin-pc-group" style="grid-column: 1 / -1; <?php echo $selected_sitin_lab_for_pc === '' ? 'display:none;' : ''; ?>">
+                    <label class="form-label">PC Number:</label>
+                    <input type="hidden" name="pc_number" id="sitin-pc-number" value="<?php echo htmlspecialchars($sitin_pc_number); ?>" required>
+                    <div class="pc-grid-wrap">
+                        <div class="pc-grid" id="sitin-pc-grid">
+                            <?php foreach ($pc_options as $pc_option): ?>
+                                <?php $is_unavailable = isset($sitin_unavailable_pcs[$pc_option]); ?>
+                                <button
+                                    type="button"
+                                    class="pc-chip <?php echo $is_unavailable ? 'pc-unavailable' : 'pc-available'; ?> <?php echo $sitin_pc_number === $pc_option ? 'pc-selected' : ''; ?>"
+                                    data-pc="<?php echo htmlspecialchars($pc_option); ?>"
+                                    <?php echo $is_unavailable ? 'disabled' : ''; ?>
+                                >
+                                    <?php echo htmlspecialchars($pc_option); ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <p class="form-help" style="margin-top:0.45rem;">Green = available, Red = not available (per selected laboratory)</p>
+                </div>
+
+                <div class="form-group" id="sitin-pc-hint" style="grid-column: 1 / -1; <?php echo $selected_sitin_lab_for_pc === '' ? '' : 'display:none;'; ?>">
+                    <p class="form-help" style="margin-top:0.25rem;">Select a laboratory first to show available PC numbers.</p>
                 </div>
 
                 <div class="form-group">
@@ -668,9 +745,15 @@ if ($search_result) {
 
 <script>
 (function () {
+    const unavailableByLab = <?php echo json_encode($unavailable_pcs_by_lab); ?> || {};
     const idInput = document.getElementById('sitin-id-number');
     const nameInput = document.getElementById('sitin-student-name');
     const remainingInput = document.getElementById('sitin-remaining-session');
+    const labSelect = document.getElementById('sitin-lab');
+    const pcGroup = document.getElementById('sitin-pc-group');
+    const pcHint = document.getElementById('sitin-pc-hint');
+    const pcGrid = document.getElementById('sitin-pc-grid');
+    const pcInput = document.getElementById('sitin-pc-number');
     const isLocked = idInput && idInput.hasAttribute('readonly');
 
     if (!idInput || !nameInput || !remainingInput) {
@@ -736,6 +819,50 @@ if ($search_result) {
             });
     };
 
+    const togglePcSection = function () {
+        if (!labSelect || !pcGroup || !pcHint || !pcGrid || !pcInput) {
+            return;
+        }
+
+        const hasLab = !!labSelect.value;
+        pcGroup.style.display = hasLab ? '' : 'none';
+        pcHint.style.display = hasLab ? 'none' : '';
+
+        if (!hasLab) {
+            pcInput.value = '';
+            const allChips = pcGrid.querySelectorAll('.pc-chip');
+            allChips.forEach(function (chip) {
+                chip.classList.remove('pc-selected');
+            });
+        }
+    };
+
+    const applyLabPcAvailability = function () {
+        if (!labSelect || !pcGrid || !pcInput) {
+            return;
+        }
+
+        const selectedLab = labSelect.value || '';
+        const blocked = unavailableByLab[selectedLab] || {};
+        const allChips = pcGrid.querySelectorAll('.pc-chip');
+
+        allChips.forEach(function (chip) {
+            const chipPc = chip.getAttribute('data-pc') || '';
+            const isBlocked = !!blocked[chipPc];
+
+            chip.disabled = isBlocked;
+            chip.classList.remove('pc-available', 'pc-unavailable');
+            chip.classList.add(isBlocked ? 'pc-unavailable' : 'pc-available');
+
+            if (isBlocked) {
+                chip.classList.remove('pc-selected');
+                if (pcInput.value === chipPc) {
+                    pcInput.value = '';
+                }
+            }
+        });
+    };
+
     idInput.addEventListener('input', function () {
         clearTimeout(lookupTimer);
         lookupTimer = setTimeout(lookupStudent, 250);
@@ -750,6 +877,36 @@ if ($search_result) {
         });
 
         nameInput.addEventListener('blur', lookupByName);
+    }
+
+    if (labSelect && pcGroup && pcHint && pcGrid && pcInput) {
+        labSelect.addEventListener('change', function () {
+            pcInput.value = '';
+            const allChips = pcGrid.querySelectorAll('.pc-chip');
+            allChips.forEach(function (chip) {
+                chip.classList.remove('pc-selected');
+            });
+            applyLabPcAvailability();
+            togglePcSection();
+        });
+
+        pcGrid.addEventListener('click', function (event) {
+            const target = event.target;
+            if (!target.classList.contains('pc-chip') || target.disabled) {
+                return;
+            }
+
+            const allChips = pcGrid.querySelectorAll('.pc-chip');
+            allChips.forEach(function (chip) {
+                chip.classList.remove('pc-selected');
+            });
+
+            target.classList.add('pc-selected');
+            pcInput.value = target.getAttribute('data-pc') || '';
+        });
+
+        applyLabPcAvailability();
+        togglePcSection();
     }
 })();
 </script>

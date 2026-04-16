@@ -25,6 +25,11 @@ if ($feedback_column_check && $feedback_column_check->num_rows === 0) {
     $conn->query("ALTER TABLE sit_in_records ADD COLUMN feedback TEXT NULL");
 }
 
+$feedback_rating_column_check = $conn->query("SHOW COLUMNS FROM sit_in_records LIKE 'feedback_rating'");
+if ($feedback_rating_column_check && $feedback_rating_column_check->num_rows === 0) {
+    $conn->query("ALTER TABLE sit_in_records ADD COLUMN feedback_rating TINYINT NULL");
+}
+
 $reports = [];
 $sql = "SELECT
             s.id,
@@ -33,17 +38,30 @@ $sql = "SELECT
             s.started_at,
             s.ended_at,
             s.feedback,
+            s.feedback_rating,
+            u.id AS student_id,
             u.id_number,
             u.first_name,
             u.middle_name,
             u.last_name
         FROM sit_in_records s
         INNER JOIN users u ON u.id = s.user_id
-        WHERE s.feedback IS NOT NULL AND TRIM(s.feedback) <> ''
+        WHERE (s.feedback IS NOT NULL AND TRIM(s.feedback) <> '') OR (s.feedback_rating IS NOT NULL AND s.feedback_rating BETWEEN 1 AND 5)
         ORDER BY COALESCE(s.ended_at, s.started_at) DESC";
 $res = $conn->query($sql);
 if ($res) {
     while ($row = $res->fetch_assoc()) {
+        $student_profile_image = "";
+        $student_images = glob(__DIR__ . "/uploads/profile_" . (int) $row['student_id'] . ".*");
+        if (!empty($student_images)) {
+            $student_profile_image = "uploads/" . basename($student_images[0]);
+        }
+
+        $row['profile_image_url'] = "";
+        if ($student_profile_image !== "" && file_exists(__DIR__ . "/" . $student_profile_image)) {
+            $row['profile_image_url'] = $student_profile_image . "?v=" . filemtime(__DIR__ . "/" . $student_profile_image);
+        }
+
         $reports[] = $row;
     }
 }
@@ -63,7 +81,6 @@ if ($res) {
     <ul class="nav-links admin-links">
         <li><a href="admin_dashboard.php">Home</a></li>
         <li><a href="admin_dashboard.php?open=search">Search</a></li>
-        <li><a href="admin_dashboard.php?open=sitin">Sit In</a></li>
         <li><a href="admin_students.php">Students</a></li>
         <li><a href="admin_current_sitin.php">View Current Sitin</a></li>
         <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
@@ -80,30 +97,46 @@ if ($res) {
         <table class="admin-table students-table">
             <thead>
                 <tr>
-                    <th>Sit ID Number</th>
+                    <th>Profile</th>
                     <th>ID Number</th>
                     <th>Name</th>
                     <th>Purpose</th>
                     <th>Sit Lab</th>
                     <th>Ended At</th>
-                    <th>Feedback</th>
+                    <th>Rating</th>
+                    <th>Comment Feedback</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($reports)): ?>
                     <tr>
-                        <td colspan="7" class="empty-table">No feedback reports yet.</td>
+                        <td colspan="8" class="empty-table">No feedback reports yet.</td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($reports as $report): ?>
                         <tr>
-                            <td><?php echo (int) $report['id']; ?></td>
+                            <td>
+                                <?php if (!empty($report['profile_image_url'])): ?>
+                                    <img src="<?php echo htmlspecialchars($report['profile_image_url']); ?>" alt="Student Profile" class="avatar-img" style="width:42px; height:42px; border-radius:999px; object-fit:cover;">
+                                <?php else: ?>
+                                    <div class="avatar" style="width:42px; height:42px; border-radius:999px; margin:0; font-size:0.8rem;">
+                                        <?php echo htmlspecialchars(strtoupper(substr((string) $report['first_name'], 0, 1) . substr((string) $report['last_name'], 0, 1))); ?>
+                                    </div>
+                                <?php endif; ?>
+                            </td>
                             <td><?php echo htmlspecialchars($report['id_number']); ?></td>
                             <td><?php echo htmlspecialchars($report['first_name'] . ' ' . ($report['middle_name'] ? $report['middle_name'] . ' ' : '') . $report['last_name']); ?></td>
                             <td><?php echo htmlspecialchars($report['purpose']); ?></td>
                             <td><?php echo htmlspecialchars($report['sit_lab']); ?></td>
                             <td><?php echo $report['ended_at'] ? htmlspecialchars(date('M d, Y h:i A', strtotime($report['ended_at']))) : '-'; ?></td>
-                            <td><?php echo htmlspecialchars($report['feedback']); ?></td>
+                            <td>
+                                <?php if ((int) ($report['feedback_rating'] ?? 0) >= 1): ?>
+                                    <span style="font-size:1rem; color:#f59e0b; line-height:1;"><?php echo str_repeat('★', (int) $report['feedback_rating']) . str_repeat('☆', 5 - (int) $report['feedback_rating']); ?></span>
+                                <?php else: ?>
+                                    -
+                                <?php endif; ?>
+                            </td>
+                            <td><?php echo trim((string) ($report['feedback'] ?? '')) !== '' ? htmlspecialchars($report['feedback']) : '-'; ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>

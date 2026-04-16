@@ -22,9 +22,110 @@ $conn->query("CREATE TABLE IF NOT EXISTS sit_in_records (
 
 $alert_message = "";
 $alert_type = "success";
+$open_add_student_modal = false;
+$register_form = [
+    'id_number' => '',
+    'last_name' => '',
+    'first_name' => '',
+    'middle_name' => '',
+    'course' => '',
+    'course_level' => '',
+    'email' => '',
+    'address' => ''
+];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+
+    if ($action === 'register_student') {
+        $register_form['id_number'] = trim($_POST['id_number'] ?? '');
+        $register_form['last_name'] = trim($_POST['last_name'] ?? '');
+        $register_form['first_name'] = trim($_POST['first_name'] ?? '');
+        $register_form['middle_name'] = trim($_POST['middle_name'] ?? '');
+        $register_form['course'] = trim($_POST['course'] ?? '');
+        $register_form['course_level'] = trim($_POST['course_level'] ?? '');
+        $register_form['email'] = trim($_POST['email'] ?? '');
+        $register_form['address'] = trim($_POST['address'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $repeat_password = $_POST['repeat_password'] ?? '';
+
+        if ($register_form['id_number'] === '' || $register_form['last_name'] === '' || $register_form['first_name'] === '' || $register_form['course'] === '' || $register_form['course_level'] === '' || $register_form['email'] === '' || $password === '' || $repeat_password === '') {
+            $alert_message = "Please fill in all required registration fields.";
+            $alert_type = "error";
+            $open_add_student_modal = true;
+        } elseif ($password !== $repeat_password) {
+            $alert_message = "Passwords do not match.";
+            $alert_type = "error";
+            $open_add_student_modal = true;
+        } elseif (strlen($password) < 6) {
+            $alert_message = "Password must be at least 6 characters.";
+            $alert_type = "error";
+            $open_add_student_modal = true;
+        } elseif (!in_array($register_form['course'], ['BSIT', 'BSCS', 'BSIS'], true)) {
+            $alert_message = "Please select a valid course.";
+            $alert_type = "error";
+            $open_add_student_modal = true;
+        } elseif (!in_array($register_form['course_level'], ['1', '2', '3', '4'], true)) {
+            $alert_message = "Please select a valid course level.";
+            $alert_type = "error";
+            $open_add_student_modal = true;
+        } elseif (!filter_var($register_form['email'], FILTER_VALIDATE_EMAIL)) {
+            $alert_message = "Please enter a valid email address.";
+            $alert_type = "error";
+            $open_add_student_modal = true;
+        } else {
+            $check_stmt = $conn->prepare("SELECT id FROM users WHERE id_number = ? OR email = ? LIMIT 1");
+            $check_stmt->bind_param("ss", $register_form['id_number'], $register_form['email']);
+            $check_stmt->execute();
+            $check_stmt->store_result();
+
+            if ($check_stmt->num_rows > 0) {
+                $alert_message = "ID number or email already exists.";
+                $alert_type = "error";
+                $open_add_student_modal = true;
+            } else {
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $course_level_int = (int) $register_form['course_level'];
+                $insert_stmt = $conn->prepare("INSERT INTO users (id_number, last_name, first_name, middle_name, course, course_level, email, address, role, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'student', ?)");
+                $insert_stmt->bind_param(
+                    "sssssisss",
+                    $register_form['id_number'],
+                    $register_form['last_name'],
+                    $register_form['first_name'],
+                    $register_form['middle_name'],
+                    $register_form['course'],
+                    $course_level_int,
+                    $register_form['email'],
+                    $register_form['address'],
+                    $hashed_password
+                );
+
+                if ($insert_stmt->execute()) {
+                    $alert_message = "Student registered successfully.";
+                    $alert_type = "success";
+                    $register_form = [
+                        'id_number' => '',
+                        'last_name' => '',
+                        'first_name' => '',
+                        'middle_name' => '',
+                        'course' => '',
+                        'course_level' => '',
+                        'email' => '',
+                        'address' => ''
+                    ];
+                    $open_add_student_modal = false;
+                } else {
+                    $alert_message = "Unable to register student.";
+                    $alert_type = "error";
+                    $open_add_student_modal = true;
+                }
+
+                $insert_stmt->close();
+            }
+
+            $check_stmt->close();
+        }
+    }
 
     if ($action === 'update_student') {
         $student_id = (int) ($_POST['student_id'] ?? 0);
@@ -70,8 +171,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'reset_sessions') {
-        if ($conn->query("DELETE FROM sit_in_records")) {
-            $alert_message = "All sit-in sessions were reset.";
+        $reset_sql = "DELETE s FROM sit_in_records s
+            LEFT JOIN (
+                SELECT DISTINCT user_id
+                FROM sit_in_records
+                WHERE status = 'active'
+            ) active_users ON active_users.user_id = s.user_id
+            WHERE active_users.user_id IS NULL";
+
+        if ($conn->query($reset_sql)) {
+            $deleted_rows = (int) $conn->affected_rows;
+            if ($deleted_rows > 0) {
+                $alert_message = "Sessions for non-active students were reset. Active students were skipped.";
+            } else {
+                $alert_message = "No non-active student sessions to reset. Active students were kept unchanged.";
+            }
             $alert_type = "success";
         } else {
             $alert_message = "Unable to reset sessions.";
@@ -185,6 +299,14 @@ if (isset($_GET['edit_student'])) {
         }
     }
 }
+
+if (isset($_GET['open']) && $_GET['open'] === 'add_student') {
+    $open_add_student_modal = true;
+}
+
+if ($open_student_modal) {
+    $open_add_student_modal = false;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -201,7 +323,6 @@ if (isset($_GET['edit_student'])) {
     <ul class="nav-links admin-links">
         <li><a href="admin_dashboard.php">Home</a></li>
         <li><a href="admin_dashboard.php?open=search">Search</a></li>
-        <li><a href="admin_dashboard.php?open=sitin">Sit In</a></li>
         <li><a href="admin_students.php">Students</a></li>
         <li><a href="admin_current_sitin.php">View Current Sitin</a></li>
         <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
@@ -219,8 +340,8 @@ if (isset($_GET['edit_student'])) {
     <?php endif; ?>
 
     <div class="students-toolbar">
-        <a href="register.php" class="admin-btn admin-btn-primary">Add Students</a>
-        <form method="POST" class="inline-form" onsubmit="return confirm('Reset all sit-in sessions?');">
+        <a href="admin_students.php?open=add_student" class="admin-btn admin-btn-primary">Add Students</a>
+        <form method="POST" class="inline-form" onsubmit="return confirm('Reset sessions for non-active students only? Active students will not be reset.');">
             <input type="hidden" name="action" value="reset_sessions">
             <button type="submit" class="admin-btn admin-btn-danger">Reset All Session</button>
         </form>
@@ -264,6 +385,85 @@ if (isset($_GET['edit_student'])) {
                 <?php endif; ?>
             </tbody>
         </table>
+    </div>
+</div>
+
+<div class="modal-overlay <?php echo $open_add_student_modal ? 'is-open' : ''; ?>" id="add-student-modal">
+    <div class="admin-modal student-profile-modal">
+        <div class="modal-header">
+            <h3>Add Student</h3>
+            <a href="admin_students.php" class="modal-close" aria-label="Close">×</a>
+        </div>
+
+        <form method="POST" class="sitin-modal-form">
+            <input type="hidden" name="action" value="register_student">
+
+            <div class="form-group">
+                <label class="form-label">ID Number</label>
+                <input type="text" class="form-control" name="id_number" value="<?php echo htmlspecialchars($register_form['id_number']); ?>" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Last Name</label>
+                <input type="text" class="form-control" name="last_name" value="<?php echo htmlspecialchars($register_form['last_name']); ?>" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">First Name</label>
+                <input type="text" class="form-control" name="first_name" value="<?php echo htmlspecialchars($register_form['first_name']); ?>" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Middle Name</label>
+                <input type="text" class="form-control" name="middle_name" value="<?php echo htmlspecialchars($register_form['middle_name']); ?>">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Course</label>
+                <select class="form-control" name="course" required>
+                    <option value="" disabled <?php echo $register_form['course'] === '' ? 'selected' : ''; ?>>Select Course</option>
+                    <option value="BSIT" <?php echo $register_form['course'] === 'BSIT' ? 'selected' : ''; ?>>BSIT - Bachelor of Science in Information Technology</option>
+                    <option value="BSCS" <?php echo $register_form['course'] === 'BSCS' ? 'selected' : ''; ?>>BSCS - Bachelor of Science in Computer Science</option>
+                    <option value="BSIS" <?php echo $register_form['course'] === 'BSIS' ? 'selected' : ''; ?>>BSIS - Bachelor of Science in Information Systems</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Course Level</label>
+                <select class="form-control" name="course_level" required>
+                    <option value="" disabled <?php echo $register_form['course_level'] === '' ? 'selected' : ''; ?>>Select Course Level</option>
+                    <option value="1" <?php echo $register_form['course_level'] === '1' ? 'selected' : ''; ?>>1st Year</option>
+                    <option value="2" <?php echo $register_form['course_level'] === '2' ? 'selected' : ''; ?>>2nd Year</option>
+                    <option value="3" <?php echo $register_form['course_level'] === '3' ? 'selected' : ''; ?>>3rd Year</option>
+                    <option value="4" <?php echo $register_form['course_level'] === '4' ? 'selected' : ''; ?>>4th Year</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-control" name="password" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Repeat Password</label>
+                <input type="password" class="form-control" name="repeat_password" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars($register_form['email']); ?>" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <input type="text" class="form-control" name="address" value="<?php echo htmlspecialchars($register_form['address']); ?>">
+            </div>
+
+            <div class="sitin-modal-actions">
+                <a href="admin_students.php" class="admin-btn admin-btn-muted">Cancel</a>
+                <button type="submit" class="admin-btn admin-btn-primary">Register Student</button>
+            </div>
+        </form>
     </div>
 </div>
 

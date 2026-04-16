@@ -82,7 +82,6 @@ if ($res) {
     <ul class="nav-links admin-links">
         <li><a href="admin_dashboard.php">Home</a></li>
         <li><a href="admin_dashboard.php?open=search">Search</a></li>
-        <li><a href="admin_dashboard.php?open=sitin">Sit In</a></li>
         <li><a href="admin_students.php">Students</a></li>
         <li><a href="admin_current_sitin.php">View Current Sitin</a></li>
         <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
