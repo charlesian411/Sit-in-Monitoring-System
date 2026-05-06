@@ -198,5 +198,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     </div>
 </div>
 
+
+<script src="theme.js"></script>
 </body>
 </html>

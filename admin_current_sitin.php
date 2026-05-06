@@ -23,8 +23,8 @@ $conn->query("CREATE TABLE IF NOT EXISTS sit_in_records (
 $alert_message = "";
 $alert_type = "success";
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'end_sitin') {
-    $record_id = (int) ($_POST['record_id'] ?? 0);
+if (isset($_REQUEST['action']) && $_REQUEST['action'] === 'end_sitin') {
+    $record_id = (int) ($_REQUEST['record_id'] ?? 0);
     if ($record_id > 0) {
         $stmt = $conn->prepare("UPDATE sit_in_records SET status = 'completed', ended_at = NOW() WHERE id = ? AND status = 'active'");
         $stmt->bind_param("i", $record_id);
@@ -85,7 +85,10 @@ if ($res) {
         <li><a href="admin_students.php">Students</a></li>
         <li><a href="admin_current_sitin.php">View Current Sitin</a></li>
         <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
+        <li><a href="admin_reports.php">Reports</a></li>
         <li><a href="admin_feedback_reports.php">Feedback Reports</a></li>
+        <li><a href="admin_leaderboard.php">Leaderboard</a></li>
+        <li><a href="admin_lab_software.php">Lab Software</a></li>
         <li><a href="admin_reservations.php">Reservations</a></li>
         <li><a href="logout.php" class="admin-logout-link">Log out</a></li>
     </ul>
@@ -130,11 +133,12 @@ if ($res) {
                             <td><?php echo (int) $record['session_number']; ?></td>
                             <td><span class="role-badge role-student">Active</span></td>
                             <td>
-                                <form method="POST" class="inline-form" onsubmit="return confirm('Mark this sit-in as completed?');">
-                                    <input type="hidden" name="action" value="end_sitin">
-                                    <input type="hidden" name="record_id" value="<?php echo (int) $record['id']; ?>">
-                                    <button type="submit" class="admin-btn admin-btn-secondary">End</button>
-                                </form>
+                                <a href="admin_current_sitin.php?action=end_sitin&record_id=<?php echo (int)$record['id']; ?>" 
+                                   class="admin-btn admin-btn-secondary" 
+                                   onclick="return confirm('Mark this sit-in as completed?');"
+                                   style="text-decoration: none; display: inline-block;">
+                                    End
+                                </a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -144,5 +148,7 @@ if ($res) {
     </div>
 </div>
 
+
+<script src="theme.js"></script>
 </body>
 </html>

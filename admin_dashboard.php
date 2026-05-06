@@ -72,6 +72,23 @@ $conn->query("CREATE TABLE IF NOT EXISTS announcements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )");
 
+$conn->query("CREATE TABLE IF NOT EXISTS system_settings (
+    setting_key VARCHAR(100) PRIMARY KEY,
+    setting_value VARCHAR(255) NOT NULL
+)");
+
+// Ensure reservation_enabled setting exists
+$setting_check = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'reservation_enabled'");
+if ($setting_check && $setting_check->num_rows === 0) {
+    $conn->query("INSERT INTO system_settings (setting_key, setting_value) VALUES ('reservation_enabled', '1')");
+}
+
+$reservation_enabled = true;
+$setting_res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'reservation_enabled'");
+if ($setting_res && $setting_row = $setting_res->fetch_assoc()) {
+    $reservation_enabled = ($setting_row['setting_value'] === '1');
+}
+
 $conn->query("CREATE TABLE IF NOT EXISTS sit_in_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -160,6 +177,21 @@ if ($pending_pc_res) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = isset($_POST['action']) ? $_POST['action'] : '';
+
+    if ($action === 'toggle_reservation') {
+        $new_value = $reservation_enabled ? '0' : '1';
+        $toggle_stmt = $conn->prepare("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'reservation_enabled'");
+        $toggle_stmt->bind_param("s", $new_value);
+        if ($toggle_stmt->execute()) {
+            $reservation_enabled = ($new_value === '1');
+            $alert_message = "Reservation " . ($reservation_enabled ? 'enabled' : 'disabled') . " successfully.";
+            $alert_type = "success";
+        } else {
+            $alert_message = "Failed to update reservation setting.";
+            $alert_type = "error";
+        }
+        $toggle_stmt->close();
+    }
 
     if ($action === 'post_announcement') {
         $announcement = trim($_POST['announcement'] ?? '');
@@ -525,7 +557,8 @@ if ($search_result) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Admin Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=13">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <style>
         #search-modal .admin-modal { max-height: 92vh; overflow-y: auto; }
         .pc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 0.5rem; margin-top: 0.4rem; }
@@ -546,7 +579,10 @@ if ($search_result) {
         <li><a href="admin_students.php">Students</a></li>
         <li><a href="admin_current_sitin.php">View Current Sitin</a></li>
         <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
+        <li><a href="admin_reports.php">Reports</a></li>
         <li><a href="admin_feedback_reports.php">Feedback Reports</a></li>
+        <li><a href="admin_leaderboard.php">Leaderboard</a></li>
+        <li><a href="admin_lab_software.php">Lab Software</a></li>
         <li><a href="admin_reservations.php">Reservations<?php if ($pending_count > 0): ?> <span class="badge-pill"><?php echo $pending_count; ?></span><?php endif; ?></a></li>
         <li><a href="logout.php" class="admin-logout-link">Log out</a></li>
     </ul>
@@ -559,7 +595,7 @@ if ($search_result) {
 
     <div class="admin-grid">
         <section class="admin-card">
-            <div class="admin-card-title">Statistics</div>
+            <div class="admin-card-title">Statistics & Analytics</div>
 
             <div class="admin-stat-list">
                 <p><strong>Students Registered:</strong> <?php echo $stats['students_registered']; ?></p>
@@ -567,51 +603,39 @@ if ($search_result) {
                 <p><strong>Total Sit-in:</strong> <?php echo $stats['total_sit_in']; ?></p>
             </div>
 
-            <div class="mini-chart">
-                <?php if (empty($course_stats)): ?>
-                    <p class="empty-text">No course data yet.</p>
-                <?php else: ?>
-                    <?php foreach ($course_stats as $idx => $course): ?>
-                        <?php
-                            $bar_width = $max_course_total > 0 ? ((int) $course['total'] / $max_course_total) * 100 : 0;
-                            $bar_class = 'bar-' . ($idx % 5);
-                        ?>
-                        <div class="chart-row">
-                            <span class="chart-label"><?php echo htmlspecialchars($course['course']); ?></span>
-                            <div class="chart-track">
-                                <div class="chart-bar <?php echo $bar_class; ?>" style="width: <?php echo (float) $bar_width; ?>%;"></div>
-                            </div>
-                            <span class="chart-value"><?php echo (int) $course['total']; ?></span>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+            <div class="pie-charts-row">
+                <div class="pie-chart-box">
+                    <h3 class="pie-chart-title">Course Distribution</h3>
+                    <?php if (empty($course_stats)): ?>
+                        <p class="empty-text">No course data yet.</p>
+                    <?php else: ?>
+                        <canvas id="coursePieChart" width="220" height="220"></canvas>
+                    <?php endif; ?>
+                </div>
+                <div class="pie-chart-box">
+                    <h3 class="pie-chart-title">Language Usage</h3>
+                    <?php if ($max_language_total <= 0): ?>
+                        <p class="empty-text">No language usage data yet.</p>
+                    <?php else: ?>
+                        <canvas id="languagePieChart" width="220" height="220"></canvas>
+                    <?php endif; ?>
+                </div>
             </div>
 
-            <h2 class="admin-language-title">Language Usage</h2>
-            <div class="mini-chart">
-                <div class="language-legend">
-                    <?php foreach ($language_stats as $lidx => $language): ?>
-                        <span class="legend-item"><span class="legend-dot bar-<?php echo $lidx % 5; ?>"></span><?php echo htmlspecialchars($language['label']); ?></span>
-                    <?php endforeach; ?>
+            <div class="reservation-toggle-section">
+                <div class="reservation-toggle-info">
+                    <strong>Reservation System</strong>
+                    <span class="reservation-toggle-status <?php echo $reservation_enabled ? 'toggle-on' : 'toggle-off'; ?>">
+                        <?php echo $reservation_enabled ? 'Enabled' : 'Disabled'; ?>
+                    </span>
                 </div>
-
-                <?php if ($max_language_total <= 0): ?>
-                    <p class="empty-text">No language usage data yet.</p>
-                <?php else: ?>
-                    <?php foreach ($language_stats as $lidx => $language): ?>
-                        <?php
-                            $language_bar_width = $max_language_total > 0 ? ((int) $language['total'] / $max_language_total) * 100 : 0;
-                            $language_bar_class = 'bar-' . ($lidx % 5);
-                        ?>
-                        <div class="chart-row">
-                            <span class="chart-label"><?php echo htmlspecialchars($language['label']); ?></span>
-                            <div class="chart-track">
-                                <div class="chart-bar <?php echo $language_bar_class; ?>" style="width: <?php echo (float) $language_bar_width; ?>%;"></div>
-                            </div>
-                            <span class="chart-value"><?php echo (int) $language['total']; ?></span>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                <form method="POST" class="inline-form">
+                    <input type="hidden" name="action" value="toggle_reservation">
+                    <label class="toggle-switch">
+                        <input type="checkbox" <?php echo $reservation_enabled ? 'checked' : ''; ?> onchange="this.form.submit();">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </form>
             </div>
         </section>
 
@@ -911,5 +935,65 @@ if ($search_result) {
 })();
 </script>
 
+<script>
+(function () {
+    var courseColors = ['#0ea5e9', '#f43f5e', '#f59e0b', '#8b5cf6', '#14b8a6', '#ec4899', '#6366f1', '#10b981'];
+    var languageColors = ['#0ea5e9', '#f43f5e', '#f59e0b', '#8b5cf6', '#14b8a6', '#ec4899', '#6366f1'];
+
+    var courseData = <?php echo json_encode(array_map(function($c) { return ['label' => $c['course'], 'value' => (int) $c['total']]; }, $course_stats)); ?>;
+    var languageData = <?php echo json_encode(array_map(function($l) { return ['label' => $l['label'], 'value' => (int) $l['total']]; }, $language_stats)); ?>;
+
+    var courseCanvas = document.getElementById('coursePieChart');
+    if (courseCanvas && courseData.length > 0) {
+        new Chart(courseCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: courseData.map(function(d) { return d.label; }),
+                datasets: [{
+                    data: courseData.map(function(d) { return d.value; }),
+                    backgroundColor: courseColors.slice(0, courseData.length),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11, family: 'Inter' }, padding: 12 } }
+                }
+            }
+        });
+    }
+
+    var languageCanvas = document.getElementById('languagePieChart');
+    if (languageCanvas && languageData.length > 0) {
+        var filteredLang = languageData.filter(function(d) { return d.value > 0; });
+        if (filteredLang.length === 0) filteredLang = languageData;
+        new Chart(languageCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: filteredLang.map(function(d) { return d.label; }),
+                datasets: [{
+                    data: filteredLang.map(function(d) { return d.value; }),
+                    backgroundColor: languageColors.slice(0, filteredLang.length),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11, family: 'Inter' }, padding: 12 } }
+                }
+            }
+        });
+    }
+})();
+</script>
+
+
+<script src="theme.js"></script>
 </body>
 </html>

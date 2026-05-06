@@ -63,6 +63,18 @@ if ($sitin_pc_column && $sitin_pc_column->num_rows === 0) {
 $alert_message = "";
 $alert_type = "success";
 $user_id = (int) $_SESSION['user_id'];
+
+// Check if reservations are enabled
+$conn->query("CREATE TABLE IF NOT EXISTS system_settings (
+    setting_key VARCHAR(100) PRIMARY KEY,
+    setting_value VARCHAR(255) NOT NULL
+)");
+
+$reservation_enabled = true;
+$setting_res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'reservation_enabled'");
+if ($setting_res && $setting_row = $setting_res->fetch_assoc()) {
+    $reservation_enabled = ($setting_row['setting_value'] === '1');
+}
 $purpose_options = ['C#', 'Python', 'JavaScript', 'Java', 'TypeScript', 'PHP', 'C++'];
 $lab_options = ['524', '526', '528', '530', '542', '544'];
 $purpose = trim($_POST['purpose'] ?? '');
@@ -205,6 +217,7 @@ $list_stmt->close();
         <li><a href="dashboard.php">Home</a></li>
         <li><a href="edit_profile.php">Edit Profile</a></li>
         <li><a href="student_history_sitin.php">My History Sitin</a></li>
+        <li><a href="student_lab_software.php">Lab Software</a></li>
         <li><a href="reservation.php">Reservation</a></li>
         <li><a href="logout.php">Logout</a></li>
     </ul>
@@ -212,6 +225,12 @@ $list_stmt->close();
 
 <div class="admin-page student-reservation-page">
     <h1 class="admin-page-title">Sit-in Reservation</h1>
+
+    <?php if (!$reservation_enabled): ?>
+        <div class="alert alert-error admin-alert" style="text-align: center; font-size: 1rem; padding: 1.5rem;">
+            ⛔ Reservations are currently <strong>disabled</strong> by the administrator. Please check back later.
+        </div>
+    <?php else: ?>
 
     <?php if ($alert_message !== ''): ?>
         <div class="alert <?php echo $alert_type === 'error' ? 'alert-error' : 'alert-success'; ?> admin-alert"><?php echo htmlspecialchars($alert_message); ?></div>
@@ -328,6 +347,7 @@ $list_stmt->close();
             </table>
         </div>
     </section>
+    <?php endif; /* end reservation_enabled check */ ?>
 </div>
 
 <script>
@@ -408,5 +428,7 @@ $list_stmt->close();
 })();
 </script>
 
+
+<script src="theme.js"></script>
 </body>
 </html>

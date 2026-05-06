@@ -143,6 +143,7 @@ $history_stmt->close();
         <li><a href="dashboard.php">Home</a></li>
         <li><a href="edit_profile.php">Edit Profile</a></li>
         <li><a href="student_history_sitin.php">My History Sitin</a></li>
+        <li><a href="student_lab_software.php">Lab Software</a></li>
         <li><a href="reservation.php">Reservation</a></li>
         <li><a href="logout.php">Logout</a></li>
     </ul>
@@ -256,5 +257,7 @@ $history_stmt->close();
     </div>
 </div>
 
+
+<script src="theme.js"></script>
 </body>
 </html>

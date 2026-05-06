@@ -113,6 +113,45 @@ $session_row = $session_result->fetch_assoc();
 $used_sessions = (int) ($session_row['total_sessions'] ?? 0);
 $remaining_sessions = max(0, 30 - $used_sessions);
 $session_stmt->close();
+
+// Sit-in summary stats
+$summary_stats = [
+    'total_hours' => 0,
+    'num_sessions' => 0,
+    'avg_duration' => 0,
+    'longest_session' => 0
+];
+
+$summary_stmt = $conn->prepare("SELECT 
+    COUNT(*) AS num_sessions,
+    COALESCE(SUM(TIMESTAMPDIFF(MINUTE, started_at, ended_at)), 0) AS total_minutes,
+    COALESCE(AVG(TIMESTAMPDIFF(MINUTE, started_at, ended_at)), 0) AS avg_minutes,
+    COALESCE(MAX(TIMESTAMPDIFF(MINUTE, started_at, ended_at)), 0) AS longest_minutes
+    FROM sit_in_records WHERE user_id = ? AND status = 'completed' AND ended_at IS NOT NULL");
+$summary_stmt->bind_param("i", $_SESSION['user_id']);
+$summary_stmt->execute();
+$summary_res = $summary_stmt->get_result();
+$summary_row = $summary_res->fetch_assoc();
+if ($summary_row) {
+    $summary_stats['num_sessions'] = (int) $summary_row['num_sessions'];
+    $summary_stats['total_hours'] = round((int) $summary_row['total_minutes'] / 60, 1);
+    $summary_stats['avg_duration'] = round((int) $summary_row['avg_minutes'] / 60, 1);
+    $summary_stats['longest_session'] = round((int) $summary_row['longest_minutes'] / 60, 1);
+}
+$summary_stmt->close();
+
+// Recent sessions for table
+$recent_sessions = [];
+$recent_stmt = $conn->prepare("SELECT id, purpose, sit_lab, pc_number, status, started_at, ended_at,
+    TIMESTAMPDIFF(MINUTE, started_at, ended_at) AS duration_minutes
+    FROM sit_in_records WHERE user_id = ? ORDER BY started_at DESC LIMIT 10");
+$recent_stmt->bind_param("i", $_SESSION['user_id']);
+$recent_stmt->execute();
+$recent_res = $recent_stmt->get_result();
+while ($row = $recent_res->fetch_assoc()) {
+    $recent_sessions[] = $row;
+}
+$recent_stmt->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -135,6 +174,7 @@ $session_stmt->close();
         <li><a href="dashboard.php">Home</a></li>
         <li><a href="edit_profile.php">Edit Profile</a></li>
         <li><a href="student_history_sitin.php">My History Sitin</a></li>
+        <li><a href="student_lab_software.php">Lab Software</a></li>
         <li><a href="reservation.php">Reservation</a></li>
         <li><a href="logout.php" class="student-logout-btn">Log out</a></li>
     </ul>
@@ -203,6 +243,73 @@ $session_stmt->close();
             </div>
         </section>
     </div>
+
+    <!-- Sit-In Summary -->
+    <div class="sitin-summary-row">
+        <div class="summary-stat-card">
+            <div class="summary-stat-value"><?php echo $summary_stats['total_hours']; ?> hrs</div>
+            <div class="summary-stat-label">Total Sit-In Hours</div>
+        </div>
+        <div class="summary-stat-card">
+            <div class="summary-stat-value"><?php echo $summary_stats['num_sessions']; ?></div>
+            <div class="summary-stat-label">Number of Sessions</div>
+        </div>
+        <div class="summary-stat-card">
+            <div class="summary-stat-value"><?php echo $summary_stats['avg_duration']; ?> hrs</div>
+            <div class="summary-stat-label">Avg Session Duration</div>
+        </div>
+        <div class="summary-stat-card">
+            <div class="summary-stat-value"><?php echo $summary_stats['longest_session']; ?> hrs</div>
+            <div class="summary-stat-label">Longest Session</div>
+        </div>
+    </div>
+
+    <!-- Sessions Table -->
+    <section class="student-panel" style="min-height: auto;">
+        <div class="student-panel-title">📋 My Recent Sessions</div>
+        <div class="admin-table-wrap" style="border: none; border-radius: 0;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time In</th>
+                        <th>Time Out</th>
+                        <th>Duration</th>
+                        <th>PC No.</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($recent_sessions)): ?>
+                        <tr>
+                            <td colspan="6" class="empty-table">No sessions yet.</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($recent_sessions as $sess): ?>
+                            <?php
+                                $dur_min = (int) ($sess['duration_minutes'] ?? 0);
+                                $d_h = floor($dur_min / 60);
+                                $d_m = $dur_min % 60;
+                                $dur_display = $sess['ended_at'] ? (($d_h > 0 ? $d_h . 'h ' : '') . $d_m . 'm') : '-';
+                            ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars(date('M d, Y', strtotime($sess['started_at']))); ?></td>
+                                <td><?php echo htmlspecialchars(date('h:i A', strtotime($sess['started_at']))); ?></td>
+                                <td><?php echo $sess['ended_at'] ? htmlspecialchars(date('h:i A', strtotime($sess['ended_at']))) : '-'; ?></td>
+                                <td><?php echo $dur_display; ?></td>
+                                <td><?php echo htmlspecialchars($sess['pc_number'] ?? '-'); ?></td>
+                                <td>
+                                    <span class="status-badge status-<?php echo htmlspecialchars($sess['status']); ?>">
+                                        <?php echo htmlspecialchars(ucfirst($sess['status'])); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </section>
 </div>
 
 <div class="modal-overlay <?php echo $unread_notification_count > 0 ? 'is-open' : ''; ?>" id="student-notification-modal">
@@ -280,5 +387,7 @@ $session_stmt->close();
 })();
 </script>
 
+
+<script src="theme.js"></script>
 </body>
 </html>

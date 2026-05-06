@@ -127,7 +127,10 @@ if ($res) {
         <li><a href="admin_students.php">Students</a></li>
         <li><a href="admin_current_sitin.php">View Current Sitin</a></li>
         <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
+        <li><a href="admin_reports.php">Reports</a></li>
         <li><a href="admin_feedback_reports.php">Feedback Reports</a></li>
+        <li><a href="admin_leaderboard.php">Leaderboard</a></li>
+        <li><a href="admin_lab_software.php">Lab Software</a></li>
         <li><a href="admin_reservations.php">Reservations</a></li>
         <li><a href="logout.php" class="admin-logout-link">Log out</a></li>
     </ul>
@@ -261,5 +264,7 @@ if ($res) {
     </div>
 </div>
 
+
+<script src="theme.js"></script>
 </body>
 </html>
