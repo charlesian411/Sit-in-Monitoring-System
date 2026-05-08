@@ -24,6 +24,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS sit_in_records (
     user_id INT NOT NULL,
     purpose VARCHAR(255) NOT NULL,
     sit_lab VARCHAR(50) NOT NULL,
+    pc_number VARCHAR(10) NULL,
     status ENUM('active', 'completed') NOT NULL DEFAULT 'active',
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP NULL,
@@ -50,20 +51,56 @@ $conn->query("CREATE TABLE IF NOT EXISTS reservations (
     CONSTRAINT fk_reservation_user_student_dashboard FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )");
 
-$reservation_notified_column = $conn->query("SHOW COLUMNS FROM reservations LIKE 'student_notified'");
-if ($reservation_notified_column && $reservation_notified_column->num_rows === 0) {
-    $conn->query("ALTER TABLE reservations ADD COLUMN student_notified TINYINT(1) NOT NULL DEFAULT 0");
-}
+$conn->query("CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type ENUM('message', 'event', 'task', 'alert', 'reservation') NOT NULL DEFAULT 'alert',
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_notif_user (user_id),
+    INDEX idx_notif_read (is_read),
+    CONSTRAINT fk_notif_user_dashboard FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+)");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'mark_notifications_read')) {
-    $notify_stmt = $conn->prepare("UPDATE reservations SET student_notified = 1 WHERE user_id = ? AND status IN ('approved', 'rejected') AND student_notified = 0");
+    $notify_stmt = $conn->prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0");
     $notify_stmt->bind_param("i", $_SESSION['user_id']);
     $notify_stmt->execute();
     $notify_stmt->close();
 
+    // Also mark legacy reservation notifications as read
+    $res_stmt = $conn->prepare("UPDATE reservations SET student_notified = 1 WHERE user_id = ? AND student_notified = 0");
+    $res_stmt->bind_param("i", $_SESSION['user_id']);
+    $res_stmt->execute();
+    $res_stmt->close();
+
     header("Location: dashboard.php");
     exit();
 }
+
+// Sync reservations to notifications table
+$sync_res = $conn->prepare("SELECT id, status, reviewed_at FROM reservations WHERE user_id = ? AND student_notified = 0 AND status IN ('approved', 'rejected')");
+$sync_res->bind_param("i", $_SESSION['user_id']);
+$sync_res->execute();
+$sync_data = $sync_res->get_result();
+while ($row = $sync_data->fetch_assoc()) {
+    $notif_title = "Reservation " . ucfirst($row['status']);
+    $notif_msg = "Your lab reservation has been " . $row['status'] . ".";
+    // Avoid duplicates
+    $check_exists = $conn->prepare("SELECT id FROM notifications WHERE user_id = ? AND title = ? AND created_at = ?");
+    $check_exists->bind_param("iss", $_SESSION['user_id'], $notif_title, $row['reviewed_at']);
+    $check_exists->execute();
+    if ($check_exists->get_result()->num_rows === 0) {
+        $ins_notif = $conn->prepare("INSERT INTO notifications (user_id, type, title, message, created_at) VALUES (?, 'reservation', ?, ?, ?)");
+        $ins_notif->bind_param("isss", $_SESSION['user_id'], $notif_title, $notif_msg, $row['reviewed_at']);
+        $ins_notif->execute();
+        $ins_notif->close();
+    }
+    $check_exists->close();
+}
+$sync_res->close();
 
 // Fetch full user data
 $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
@@ -92,17 +129,18 @@ if ($ann_result) {
     }
 }
 
-$reservation_notifications = [];
-$reservation_notification_stmt = $conn->prepare("SELECT id, purpose, sit_lab, status, admin_note, reviewed_at FROM reservations WHERE user_id = ? AND status IN ('approved', 'rejected') AND student_notified = 0 ORDER BY reviewed_at DESC, id DESC");
-$reservation_notification_stmt->bind_param("i", $_SESSION['user_id']);
-$reservation_notification_stmt->execute();
-$reservation_notification_res = $reservation_notification_stmt->get_result();
-while ($notify_row = $reservation_notification_res->fetch_assoc()) {
-    $reservation_notifications[] = $notify_row;
+$notifications = [];
+$notif_stmt = $conn->prepare("SELECT id, type, title, message, created_at, is_read FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 20");
+$notif_stmt->bind_param("i", $_SESSION['user_id']);
+$notif_stmt->execute();
+$notif_res = $notif_stmt->get_result();
+while ($row = $notif_res->fetch_assoc()) {
+    $notifications[] = $row;
 }
-$reservation_notification_stmt->close();
+$notif_stmt->close();
 
-$unread_notification_count = count($reservation_notifications);
+$unread_notification_count = 0;
+foreach($notifications as $n) { if(!$n['is_read']) $unread_notification_count++; }
 
 $remaining_sessions = 30;
 $session_stmt = $conn->prepare("SELECT COUNT(*) AS total_sessions FROM sit_in_records WHERE user_id = ?");
@@ -159,7 +197,7 @@ $recent_stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 
@@ -312,52 +350,67 @@ $recent_stmt->close();
     </section>
 </div>
 
-<div class="modal-overlay <?php echo $unread_notification_count > 0 ? 'is-open' : ''; ?>" id="student-notification-modal">
-    <div class="admin-modal">
-        <div class="modal-header">
-            <h3>Reservation Alerts</h3>
-            <button type="button" class="modal-close" id="student-notification-close">&times;</button>
+<div class="modal-overlay" id="student-notification-modal">
+    <div class="notif-modal-card">
+        <div class="notif-modal-header">
+            <div class="notif-header-left">
+                <h2>Notifications</h2>
+                <p>You have <?php echo (int) $unread_notification_count; ?> new notifications.</p>
+            </div>
+            <div class="notif-header-right">
+                <button type="button" class="notif-modal-close" id="student-notification-close">&times;</button>
+            </div>
         </div>
 
-        <?php if ($unread_notification_count === 0): ?>
-            <p class="empty-table" style="padding: 0.75rem 0;">No new reservation alerts.</p>
-        <?php else: ?>
-            <div class="admin-table-wrap">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Status</th>
-                            <th>Purpose</th>
-                            <th>Lab</th>
-                            <th>Admin Note</th>
-                            <th>Reviewed At</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($reservation_notifications as $notification): ?>
-                            <tr>
-                                <td>
-                                    <?php if ($notification['status'] === 'approved'): ?>
-                                        <span class="status-badge status-approved">Approved</span>
-                                    <?php else: ?>
-                                        <span class="status-badge status-rejected">Rejected</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?php echo htmlspecialchars($notification['purpose']); ?></td>
-                                <td><?php echo htmlspecialchars($notification['sit_lab']); ?></td>
-                                <td><?php echo htmlspecialchars($notification['admin_note'] ?: '-'); ?></td>
-                                <td><?php echo $notification['reviewed_at'] ? htmlspecialchars(date('M d, Y h:i A', strtotime($notification['reviewed_at']))) : '-'; ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+        <div class="notif-modal-body">
+            <?php if (empty($notifications)): ?>
+                <div class="notif-empty-state">
+                    <p>No notifications yet.</p>
+                </div>
+            <?php else: ?>
+                <div class="notif-timeline">
+                    <?php foreach ($notifications as $notif): 
+                        $icon = '🔔';
+                        $color = '#3b82f6';
+                        if ($notif['type'] === 'message') { $icon = '✉️'; $color = '#f59e0b'; }
+                        elseif ($notif['type'] === 'event') { $icon = '📅'; $color = '#10b981'; }
+                        elseif ($notif['type'] === 'task') { $icon = '✅'; $color = '#8b5cf6'; }
+                        elseif ($notif['type'] === 'alert') { $icon = '⚠️'; $color = '#ef4444'; }
+                        elseif ($notif['type'] === 'reservation') { $icon = '🖥️'; $color = '#06b6d4'; }
+                        
+                        $time_ago = 'Just now';
+                        $diff = time() - strtotime($notif['created_at']);
+                        if ($diff >= 604800) $time_ago = floor($diff / 604800) . ' week ago';
+                        elseif ($diff >= 86400) $time_ago = floor($diff / 86400) . ' day ago';
+                        elseif ($diff >= 3600) $time_ago = floor($diff / 3600) . ' hours ago';
+                        elseif ($diff >= 60) $time_ago = floor($diff / 60) . ' mins ago';
+                    ?>
+                        <div class="notif-item <?php echo $notif['is_read'] ? '' : 'is-unread'; ?>">
+                            <div class="notif-icon-wrap">
+                                <div class="notif-icon-circle" style="border-color: <?php echo $color; ?>; color: <?php echo $color; ?>">
+                                    <?php echo $icon; ?>
+                                </div>
+                                <div class="notif-timeline-line"></div>
+                            </div>
+                            <div class="notif-content">
+                                <div class="notif-title-row">
+                                    <h4 class="notif-title"><?php echo htmlspecialchars($notif['title']); ?></h4>
+                                    <span class="notif-time"><?php echo $time_ago; ?></span>
+                                </div>
+                                <p class="notif-message"><?php echo htmlspecialchars($notif['message']); ?></p>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
 
-            <form method="POST" style="margin-top: 0.75rem;">
+        <div class="notif-modal-footer">
+            <form method="POST">
                 <input type="hidden" name="action" value="mark_notifications_read">
-                <button type="submit" class="admin-btn admin-btn-secondary">Mark as read</button>
+                <button type="submit" class="notif-mark-read-btn">Mark all as read</button>
             </form>
-        <?php endif; ?>
+        </div>
     </div>
 </div>
 
@@ -386,7 +439,6 @@ $recent_stmt->close();
     });
 })();
 </script>
-
 
 <script src="theme.js"></script>
 </body>

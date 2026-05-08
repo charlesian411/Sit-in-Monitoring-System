@@ -21,25 +21,36 @@ $conn->query("CREATE TABLE IF NOT EXISTS sit_in_records (
     CONSTRAINT fk_sit_in_user_leaderboard FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )");
 
-$leaderboard = [];
 $lb_sql = "SELECT
+    u.id AS student_id,
     u.id_number,
     u.first_name,
     u.middle_name,
     u.last_name,
     u.course,
     COUNT(s.id) AS total_sessions,
-    COALESCE(SUM(TIMESTAMPDIFF(MINUTE, s.started_at, s.ended_at)), 0) AS total_minutes
+    COALESCE(SUM(TIMESTAMPDIFF(MINUTE, s.started_at, s.ended_at)), 0) AS total_minutes,
+    (COUNT(s.id) * 100) + ROUND((COALESCE(SUM(TIMESTAMPDIFF(MINUTE, s.started_at, s.ended_at)), 0) / 60) * 50) AS total_points
 FROM sit_in_records s
 INNER JOIN users u ON u.id = s.user_id
 WHERE s.status = 'completed'
 GROUP BY u.id, u.id_number, u.first_name, u.middle_name, u.last_name, u.course
-ORDER BY total_sessions DESC, total_minutes DESC
+ORDER BY total_points DESC, total_sessions DESC
 LIMIT 50";
 
+$leaderboard = [];
 $lb_res = $conn->query($lb_sql);
 if ($lb_res) {
     while ($row = $lb_res->fetch_assoc()) {
+        $student_profile_image = "";
+        $student_images = glob(__DIR__ . "/uploads/profile_" . (int) $row['student_id'] . ".*");
+        if (!empty($student_images)) {
+            $student_profile_image = "uploads/" . basename($student_images[0]);
+        }
+        $row['profile_image_url'] = "";
+        if ($student_profile_image !== "" && file_exists(__DIR__ . "/" . $student_profile_image)) {
+            $row['profile_image_url'] = $student_profile_image . "?v=" . filemtime(__DIR__ . "/" . $student_profile_image);
+        }
         $leaderboard[] = $row;
     }
 }
@@ -56,7 +67,7 @@ if ($pending_count_res && $pending_count_row = $pending_count_res->fetch_assoc()
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Leaderboard</title>
-    <link rel="stylesheet" href="style.css?v=13">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 
@@ -77,79 +88,89 @@ if ($pending_count_res && $pending_count_row = $pending_count_res->fetch_assoc()
     </ul>
 </nav>
 
-<div class="admin-page">
-    <h1 class="admin-page-title">🏆 Sit-In Leaderboard</h1>
+<div class="admin-page leaderboard-game-page">
+    <div class="leaderboard-header">
+        <h1 class="game-title">SIT-IN<span>X</span></h1>
+        <div class="game-subtitle">Leaderboard</div>
+    </div>
 
     <?php if (empty($leaderboard)): ?>
-        <div class="admin-card">
-            <div class="admin-card-title">Rankings</div>
-            <p class="empty-text" style="padding: 1.5rem; text-align: center;">No completed sit-in sessions yet.</p>
-        </div>
+        <div class="empty-state-full">No completed sessions yet.</div>
     <?php else: ?>
-        <div class="leaderboard-podium">
-            <?php
-                $podium_order = [1, 0, 2];
-                $medal_icons = ['🥇', '🥈', '🥉'];
-                $podium_classes = ['podium-gold', 'podium-silver', 'podium-bronze'];
+        <!-- Podium Section -->
+        <div class="game-podium">
+            <?php 
+                $podium_positions = [
+                    ['rank' => 2, 'index' => 1, 'class' => 'game-podium-silver', 'color' => '#3b82f6'],
+                    ['rank' => 1, 'index' => 0, 'class' => 'game-podium-gold', 'color' => '#f59e0b'],
+                    ['rank' => 3, 'index' => 2, 'class' => 'game-podium-bronze', 'color' => '#ec4899']
+                ];
             ?>
-            <?php foreach ($podium_order as $pi): ?>
-                <?php if (isset($leaderboard[$pi])): ?>
-                    <?php
-                        $p = $leaderboard[$pi];
-                        $p_name = trim($p['first_name'] . ' ' . ($p['middle_name'] ? substr($p['middle_name'], 0, 1) . '. ' : '') . $p['last_name']);
-                        $p_hours = round((int) $p['total_minutes'] / 60, 1);
-                    ?>
-                    <div class="podium-card <?php echo $podium_classes[$pi]; ?>">
-                        <div class="podium-medal"><?php echo $medal_icons[$pi]; ?></div>
-                        <div class="podium-rank">#<?php echo $pi + 1; ?></div>
-                        <div class="podium-name"><?php echo htmlspecialchars($p_name); ?></div>
-                        <div class="podium-id"><?php echo htmlspecialchars($p['id_number']); ?></div>
-                        <div class="podium-stats">
-                            <span><strong><?php echo (int) $p['total_sessions']; ?></strong> sessions</span>
-                            <span><strong><?php echo $p_hours; ?></strong> hrs</span>
+            <?php foreach ($podium_positions as $config): ?>
+                <?php if (isset($leaderboard[$config['index']])): 
+                    $p = $leaderboard[$config['index']];
+                    $p_name = $p['first_name'] . ' ' . $p['last_name'];
+                ?>
+                    <div class="game-podium-card <?php echo $config['class']; ?>">
+                        <div class="game-podium-rank-star" style="background: <?php echo $config['color']; ?>">
+                            <span><?php echo $config['rank']; ?></span>
+                        </div>
+                        <div class="game-podium-avatar-wrap">
+                            <?php if (!empty($p['profile_image_url'])): ?>
+                                <img src="<?php echo htmlspecialchars($p['profile_image_url']); ?>" alt="Avatar" class="game-podium-avatar">
+                            <?php else: ?>
+                                <div class="game-podium-avatar-placeholder">
+                                    <?php echo strtoupper(substr($p['first_name'],0,1).substr($p['last_name'],0,1)); ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="game-podium-info">
+                            <div class="game-podium-name"><?php echo htmlspecialchars($p_name); ?></div>
+                            <div class="game-podium-handle">@<?php echo htmlspecialchars($p['id_number']); ?></div>
+                            <div class="game-podium-score" style="color: <?php echo $config['color']; ?>">
+                                <?php echo number_format($p['total_points']); ?> <span>PTS</span>
+                            </div>
                         </div>
                     </div>
                 <?php endif; ?>
             <?php endforeach; ?>
         </div>
 
-        <div class="admin-table-wrap">
-            <table class="admin-table students-table">
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>ID Number</th>
-                        <th>Student Name</th>
-                        <th>Course</th>
-                        <th>Total Sessions</th>
-                        <th>Total Hours</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($leaderboard as $rank => $student): ?>
-                        <?php
-                            $name = trim($student['first_name'] . ' ' . ($student['middle_name'] ? $student['middle_name'] . ' ' : '') . $student['last_name']);
-                            $hours = round((int) $student['total_minutes'] / 60, 1);
-                            $medal = '';
-                            if ($rank === 0) $medal = '🥇 ';
-                            elseif ($rank === 1) $medal = '🥈 ';
-                            elseif ($rank === 2) $medal = '🥉 ';
-                        ?>
-                        <tr class="<?php echo $rank < 3 ? 'leaderboard-top3' : ''; ?>">
-                            <td><strong><?php echo $medal . ($rank + 1); ?></strong></td>
-                            <td><?php echo htmlspecialchars($student['id_number']); ?></td>
-                            <td><?php echo htmlspecialchars($name); ?></td>
-                            <td><?php echo htmlspecialchars($student['course'] ?? ''); ?></td>
-                            <td><strong><?php echo (int) $student['total_sessions']; ?></strong></td>
-                            <td><?php echo $hours; ?> hrs</td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+        <!-- Rank List Section -->
+        <div class="game-rank-list">
+            <?php foreach ($leaderboard as $rank => $student): if ($rank < 3) continue; ?>
+                <div class="game-rank-item">
+                    <div class="game-rank-num">
+                        <span><?php echo $rank + 1; ?></span>
+                    </div>
+                    <div class="game-rank-user">
+                        <?php if (!empty($student['profile_image_url'])): ?>
+                            <img src="<?php echo htmlspecialchars($student['profile_image_url']); ?>" alt="Avatar" class="game-rank-avatar">
+                        <?php else: ?>
+                            <div class="game-rank-avatar-placeholder">
+                                <?php echo strtoupper(substr($student['first_name'],0,1).substr($student['last_name'],0,1)); ?>
+                            </div>
+                        <?php endif; ?>
+                        <div class="game-rank-details">
+                            <div class="game-rank-name"><?php echo htmlspecialchars($student['first_name'] . ' ' . $student['last_name']); ?></div>
+                            <div class="game-rank-handle">@<?php echo htmlspecialchars($student['id_number']); ?></div>
+                        </div>
+                    </div>
+                    <div class="game-rank-score-wrap">
+                        <div class="game-rank-score"><?php echo number_format($student['total_points']); ?> PTS</div>
+                        <div class="game-rank-progress-bg">
+                            <?php 
+                                $max_points = (int)$leaderboard[0]['total_points'];
+                                $percent = $max_points > 0 ? round(($student['total_points'] / $max_points) * 100) : 0;
+                            ?>
+                            <div class="game-rank-progress-fill" style="width: <?php echo $percent; ?>%;"></div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
     <?php endif; ?>
 </div>
-
 
 <script src="theme.js"></script>
 </body>

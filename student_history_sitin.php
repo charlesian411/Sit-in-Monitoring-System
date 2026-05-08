@@ -133,7 +133,7 @@ $history_stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | My History Sitin</title>
-    <link rel="stylesheet" href="style.css?v=1">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 
@@ -156,53 +156,53 @@ $history_stmt->close();
         <div class="alert <?php echo $alert_type === 'error' ? 'alert-error' : 'alert-success'; ?> admin-alert"><?php echo htmlspecialchars($alert_message); ?></div>
     <?php endif; ?>
 
-    <section class="admin-card student-history-card">
-        <div class="admin-card-title">Sit-in History</div>
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Purpose</th>
-                        <th>Lab</th>
-                        <th>Status</th>
-                        <th>Started</th>
-                        <th>Ended</th>
-                        <th>Feedback</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($sitin_history)): ?>
-                        <tr>
-                            <td colspan="6" class="empty-table">No sit-in history yet.</td>
-                        </tr>
-                    <?php else: ?>
-                        <?php foreach ($sitin_history as $history): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($history['purpose']); ?></td>
-                                <td><?php echo htmlspecialchars($history['sit_lab']); ?></td>
-                                <td>
-                                    <span class="status-badge status-<?php echo htmlspecialchars($history['status']); ?>"><?php echo htmlspecialchars(ucfirst($history['status'])); ?></span>
-                                </td>
-                                <td><?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($history['started_at']))); ?></td>
-                                <td><?php echo $history['ended_at'] ? htmlspecialchars(date('M d, Y h:i A', strtotime($history['ended_at']))) : '-'; ?></td>
-                                <td>
-                                    <?php if ($history['status'] === 'completed'): ?>
-                                        <?php if ((int) ($history['feedback_rating'] ?? 0) >= 1 && trim((string) ($history['feedback'] ?? '')) !== ''): ?>
-                                            <a href="student_history_sitin.php?feedback_record=<?php echo (int) $history['id']; ?>&feedback_mode=view" class="admin-btn admin-btn-secondary">View Feedback</a>
-                                        <?php else: ?>
-                                            <a href="student_history_sitin.php?feedback_record=<?php echo (int) $history['id']; ?>&feedback_mode=fill" class="admin-btn admin-btn-primary">Fill Out</a>
-                                        <?php endif; ?>
+    <div class="history-cards-container">
+        <?php if (empty($sitin_history)): ?>
+            <div class="empty-state-full" style="grid-column: 1 / -1;">No sit-in history yet.</div>
+        <?php else: ?>
+            <?php foreach ($sitin_history as $history): ?>
+                <div class="history-card">
+                    <div class="history-card-header">
+                        <span class="status-badge status-<?php echo htmlspecialchars($history['status']); ?>">
+                            <?php echo htmlspecialchars(ucfirst($history['status'])); ?>
+                        </span>
+                        <span class="history-lab-room">Lab <?php echo htmlspecialchars($history['sit_lab']); ?></span>
+                    </div>
+                    <div class="history-card-body">
+                        <h3 class="history-purpose"><?php echo htmlspecialchars($history['purpose']); ?></h3>
+                        <div class="history-time-wrap">
+                            <div class="history-time-item">
+                                <span class="time-label">Started</span>
+                                <span class="time-value"><?php echo htmlspecialchars(date('M d, Y', strtotime($history['started_at']))); ?><br><?php echo htmlspecialchars(date('h:i A', strtotime($history['started_at']))); ?></span>
+                            </div>
+                            <div class="history-time-divider"></div>
+                            <div class="history-time-item">
+                                <span class="time-label">Ended</span>
+                                <span class="time-value">
+                                    <?php if ($history['ended_at']): ?>
+                                        <?php echo htmlspecialchars(date('M d, Y', strtotime($history['ended_at']))); ?><br><?php echo htmlspecialchars(date('h:i A', strtotime($history['ended_at']))); ?>
                                     <?php else: ?>
-                                        -
+                                        <span class="text-muted">In Progress</span>
                                     <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </section>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="history-card-footer">
+                        <?php if ($history['status'] === 'completed'): ?>
+                            <?php if ((int) ($history['feedback_rating'] ?? 0) >= 1 && trim((string) ($history['feedback'] ?? '')) !== ''): ?>
+                                <a href="student_history_sitin.php?feedback_record=<?php echo (int) $history['id']; ?>&feedback_mode=view" class="history-btn history-btn-view">View Feedback</a>
+                            <?php else: ?>
+                                <a href="student_history_sitin.php?feedback_record=<?php echo (int) $history['id']; ?>&feedback_mode=fill" class="history-btn history-btn-fill">⭐ Leave Feedback</a>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <span class="history-waiting-msg">Session active</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
 </div>
 
 <div class="modal-overlay <?php echo $open_feedback_modal ? 'is-open' : ''; ?>" id="feedback-modal">
@@ -219,44 +219,47 @@ $history_stmt->close();
             </div>
 
             <?php if ($feedback_modal_mode === 'view'): ?>
-                <div class="admin-card" style="padding: 0.95rem; box-shadow:none; border:1px solid #e2e8f0;">
-                    <div style="font-size:1.1rem; color:#f59e0b; margin-bottom:0.5rem;">
-                        <?php echo str_repeat('★', (int) ($feedback_modal_record['feedback_rating'] ?? 0)) . str_repeat('☆', 5 - (int) ($feedback_modal_record['feedback_rating'] ?? 0)); ?>
+                <div class="feedback-view-card">
+                    <div class="feedback-stars-display">
+                        <?php 
+                        $rating = (int) ($feedback_modal_record['feedback_rating'] ?? 0);
+                        for($i=1; $i<=5; $i++) {
+                            echo $i <= $rating ? '★' : '☆';
+                        }
+                        ?>
                     </div>
-                    <div><?php echo nl2br(htmlspecialchars((string) ($feedback_modal_record['feedback'] ?? '-'))); ?></div>
+                    <p class="feedback-text-display"><?php echo nl2br(htmlspecialchars((string) ($feedback_modal_record['feedback'] ?? '-'))); ?></p>
                 </div>
             <?php else: ?>
-                <form method="POST" class="sitin-modal-form">
+                <form method="POST" class="feedback-premium-form">
                     <input type="hidden" name="action" value="submit_feedback">
                     <input type="hidden" name="record_id" value="<?php echo (int) $feedback_modal_record['id']; ?>">
 
-                    <div class="form-group">
-                        <label class="form-label">Rating</label>
-                        <select class="form-control" name="feedback_rating" required>
-                            <option value="" disabled <?php echo $feedback_form['feedback_rating'] === '' ? 'selected' : ''; ?>>Rate 1 to 5 Stars</option>
-                            <option value="1" <?php echo $feedback_form['feedback_rating'] === '1' ? 'selected' : ''; ?>>1 Star</option>
-                            <option value="2" <?php echo $feedback_form['feedback_rating'] === '2' ? 'selected' : ''; ?>>2 Stars</option>
-                            <option value="3" <?php echo $feedback_form['feedback_rating'] === '3' ? 'selected' : ''; ?>>3 Stars</option>
-                            <option value="4" <?php echo $feedback_form['feedback_rating'] === '4' ? 'selected' : ''; ?>>4 Stars</option>
-                            <option value="5" <?php echo $feedback_form['feedback_rating'] === '5' ? 'selected' : ''; ?>>5 Stars</option>
-                        </select>
+                    <div class="rating-selection-wrap">
+                        <label class="rating-label">How was your session?</label>
+                        <div class="star-rating-input">
+                            <input type="radio" name="feedback_rating" id="star5" value="5" required <?php echo $feedback_form['feedback_rating'] === '5' ? 'checked' : ''; ?>><label for="star5">★</label>
+                            <input type="radio" name="feedback_rating" id="star4" value="4" <?php echo $feedback_form['feedback_rating'] === '4' ? 'checked' : ''; ?>><label for="star4">★</label>
+                            <input type="radio" name="feedback_rating" id="star3" value="3" <?php echo $feedback_form['feedback_rating'] === '3' ? 'checked' : ''; ?>><label for="star3">★</label>
+                            <input type="radio" name="feedback_rating" id="star2" value="2" <?php echo $feedback_form['feedback_rating'] === '2' ? 'checked' : ''; ?>><label for="star2">★</label>
+                            <input type="radio" name="feedback_rating" id="star1" value="1" <?php echo $feedback_form['feedback_rating'] === '1' ? 'checked' : ''; ?>><label for="star1">★</label>
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Comment Feedback</label>
-                        <textarea class="form-control" name="feedback" rows="4" placeholder="Type your feedback comment" required><?php echo htmlspecialchars($feedback_form['feedback']); ?></textarea>
+                        <label class="form-label">Your Message</label>
+                        <textarea class="form-control feedback-textarea" name="feedback" rows="4" placeholder="Tell us more about your experience..." required><?php echo htmlspecialchars($feedback_form['feedback']); ?></textarea>
                     </div>
 
-                    <div class="sitin-modal-actions">
-                        <a href="student_history_sitin.php" class="admin-btn admin-btn-muted">Cancel</a>
-                        <button type="submit" class="admin-btn admin-btn-primary">Submit Feedback</button>
+                    <div class="feedback-modal-actions">
+                        <a href="student_history_sitin.php" class="feedback-cancel-btn">Cancel</a>
+                        <button type="submit" class="feedback-submit-btn">Submit Review</button>
                     </div>
                 </form>
             <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>
-
 
 <script src="theme.js"></script>
 </body>

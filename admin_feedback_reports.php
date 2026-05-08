@@ -65,6 +65,35 @@ if ($res) {
         $reports[] = $row;
     }
 }
+
+$rating_counts = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+$total_ratings = 0;
+$sum_ratings = 0;
+$last_month_sum = 0;
+$last_month_count = 0;
+
+$first_day_current_month = date('Y-m-01 00:00:00');
+$first_day_last_month = date('Y-m-01 00:00:00', strtotime('first day of last month'));
+
+foreach ($reports as $report) {
+    if ((int)($report['feedback_rating'] ?? 0) >= 1 && (int)($report['feedback_rating'] ?? 0) <= 5) {
+        $r = (int)$report['feedback_rating'];
+        $rating_counts[$r]++;
+        $total_ratings++;
+        $sum_ratings += $r;
+
+        if ($report['ended_at']) {
+            $ended_ts = strtotime($report['ended_at']);
+            if ($ended_ts >= strtotime($first_day_last_month) && $ended_ts < strtotime($first_day_current_month)) {
+                $last_month_sum += $r;
+                $last_month_count++;
+            }
+        }
+    }
+}
+
+$avg_rating = $total_ratings > 0 ? round($sum_ratings / $total_ratings, 1) : 0;
+$avg_last_month = $last_month_count > 0 ? round($last_month_sum / $last_month_count, 1) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -72,7 +101,7 @@ if ($res) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Feedback Reports</title>
-    <link rel="stylesheet" href="style.css?v=1">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 
@@ -96,58 +125,91 @@ if ($res) {
 <div class="admin-page">
     <h1 class="admin-page-title">Feedback Reports</h1>
 
-    <div class="admin-table-wrap">
-        <table class="admin-table students-table">
-            <thead>
-                <tr>
-                    <th>Profile</th>
-                    <th>ID Number</th>
-                    <th>Name</th>
-                    <th>Purpose</th>
-                    <th>Sit Lab</th>
-                    <th>Ended At</th>
-                    <th>Rating</th>
-                    <th>Comment Feedback</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (empty($reports)): ?>
-                    <tr>
-                        <td colspan="8" class="empty-table">No feedback reports yet.</td>
-                    </tr>
-                <?php else: ?>
-                    <?php foreach ($reports as $report): ?>
-                        <tr>
-                            <td>
-                                <?php if (!empty($report['profile_image_url'])): ?>
-                                    <img src="<?php echo htmlspecialchars($report['profile_image_url']); ?>" alt="Student Profile" class="avatar-img" style="width:42px; height:42px; border-radius:999px; object-fit:cover;">
-                                <?php else: ?>
-                                    <div class="avatar" style="width:42px; height:42px; border-radius:999px; margin:0; font-size:0.8rem;">
-                                        <?php echo htmlspecialchars(strtoupper(substr((string) $report['first_name'], 0, 1) . substr((string) $report['last_name'], 0, 1))); ?>
-                                    </div>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo htmlspecialchars($report['id_number']); ?></td>
-                            <td><?php echo htmlspecialchars($report['first_name'] . ' ' . ($report['middle_name'] ? $report['middle_name'] . ' ' : '') . $report['last_name']); ?></td>
-                            <td><?php echo htmlspecialchars($report['purpose']); ?></td>
-                            <td><?php echo htmlspecialchars($report['sit_lab']); ?></td>
-                            <td><?php echo $report['ended_at'] ? htmlspecialchars(date('M d, Y h:i A', strtotime($report['ended_at']))) : '-'; ?></td>
-                            <td>
-                                <?php if ((int) ($report['feedback_rating'] ?? 0) >= 1): ?>
-                                    <span style="font-size:1rem; color:#f59e0b; line-height:1;"><?php echo str_repeat('★', (int) $report['feedback_rating']) . str_repeat('☆', 5 - (int) $report['feedback_rating']); ?></span>
-                                <?php else: ?>
-                                    -
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo trim((string) ($report['feedback'] ?? '')) !== '' ? htmlspecialchars($report['feedback']) : '-'; ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
+    <!-- Rating Summary Dashboard -->
+    <div class="rating-overview-card">
+        <div class="rating-summary-grid">
+            <!-- Bars Section -->
+            <div class="rating-bars-section">
+                <?php for($i=5; $i>=1; $i--): 
+                    $percent = $total_ratings > 0 ? round(($rating_counts[$i] / $total_ratings) * 100) : 0;
+                ?>
+                    <div class="rating-bar-row">
+                        <span class="rating-num"><?php echo $i; ?> ★</span>
+                        <div class="rating-bar-bg">
+                            <div class="rating-bar-fill" style="width: <?php echo $percent; ?>%;"></div>
+                        </div>
+                        <span class="rating-percent"><?php echo $percent; ?>%</span>
+                    </div>
+                <?php endfor; ?>
+            </div>
+
+            <!-- Average Section -->
+            <div class="avg-rating-section">
+                <div class="avg-value"><?php echo number_format($avg_rating, 1); ?></div>
+                <div class="avg-stars">
+                    <?php 
+                    $full_stars = floor($avg_rating);
+                    $has_half = ($avg_rating - $full_stars) >= 0.5;
+                    for($i=1; $i<=5; $i++) {
+                        if($i <= $full_stars) echo "★";
+                        else if($i == $full_stars + 1 && $has_half) echo "☆";
+                        else echo "☆";
+                    }
+                    ?>
+                </div>
+                <div class="avg-label"><?php echo $total_ratings; ?> Ratings</div>
+            </div>
+
+            <!-- Last Month Section -->
+            <div class="last-month-section">
+                <div class="avg-value"><?php echo number_format($avg_last_month, 1); ?></div>
+                <div class="avg-stars">
+                    <?php 
+                    $lm_full = floor($avg_last_month);
+                    for($i=1; $i<=5; $i++) echo ($i <= $lm_full) ? "★" : "☆";
+                    ?>
+                </div>
+                <div class="avg-label">Last Month</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Cards Grid -->
+    <div class="feedback-grid">
+        <?php if (empty($reports)): ?>
+            <div class="empty-state-full">No feedback reports yet.</div>
+        <?php else: ?>
+            <?php foreach ($reports as $report): ?>
+                <div class="feedback-card">
+                    <div class="feedback-card-header">
+                        <?php if (!empty($report['profile_image_url'])): ?>
+                            <img src="<?php echo htmlspecialchars($report['profile_image_url']); ?>" alt="Student Profile" class="feedback-avatar">
+                        <?php else: ?>
+                            <div class="feedback-avatar-placeholder">
+                                <?php echo htmlspecialchars(strtoupper(substr((string) $report['first_name'], 0, 1) . substr((string) $report['last_name'], 0, 1))); ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="feedback-card-content">
+                        <div class="feedback-stars">
+                            <?php 
+                            $r = (int)($report['feedback_rating'] ?? 0);
+                            for($i=1; $i<=5; $i++) echo ($i <= $r) ? "★" : "☆";
+                            ?>
+                        </div>
+                        <p class="feedback-comment">
+                            <?php echo trim((string) ($report['feedback'] ?? '')) !== '' ? '"' . htmlspecialchars($report['feedback']) . '"' : 'No comment provided.'; ?>
+                        </p>
+                        <div class="feedback-meta">
+                            <span class="feedback-author"><?php echo htmlspecialchars($report['first_name'] . ' ' . $report['last_name']); ?></span>
+                            <span class="feedback-lab"><?php echo htmlspecialchars($report['sit_lab']); ?> • <?php echo $report['ended_at'] ? date('M d, Y', strtotime($report['ended_at'])) : '-'; ?></span>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 </div>
-
 
 <script src="theme.js"></script>
 </body>
