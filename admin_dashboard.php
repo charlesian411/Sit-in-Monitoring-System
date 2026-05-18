@@ -557,16 +557,338 @@ if ($search_result) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Admin Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=13">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <style>
-        #search-modal .admin-modal { max-height: 92vh; overflow-y: auto; }
+        /* ── LIGHT MODE VARIABLES (Default) ── */
+        :root {
+            --db-page-bg: #f0f2f5;
+            --db-card-bg: rgba(255, 255, 255, 0.95);
+            --db-card-border: rgba(0, 0, 0, 0.08);
+            --db-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            --db-text-main: #1e293b;
+            --db-text-muted: #64748b;
+            --db-metric-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+            --db-metric-border: rgba(59, 130, 246, 0.2);
+            --db-metric-number: #1d4ed8;
+            --db-header-gradient: linear-gradient(90deg, rgba(37, 99, 235, 0.1), rgba(124, 58, 237, 0.1));
+            --db-header-text: #1e3a8a;
+            --db-input-bg: #f8fafc;
+            --db-input-border: #cbd5e1;
+            --db-btn-bg: #2563eb;
+            --db-btn-hover: #1d4ed8;
+            --db-btn-text: #ffffff;
+            --db-ann-item-bg: #f8fafc;
+            --db-ann-item-border: #e2e8f0;
+            --db-chart-text: #475569;
+            --db-chart-border: #ffffff;
+        }
+
+        /* ── DARK MODE VARIABLES ── */
+        [data-theme="dark"] {
+            --db-page-bg: #0f172a;
+            --db-card-bg: rgba(30, 41, 59, 0.7);
+            --db-card-border: rgba(255, 255, 255, 0.08);
+            --db-card-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            --db-text-main: #f8fafc;
+            --db-text-muted: #94a3b8;
+            --db-metric-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15));
+            --db-metric-border: rgba(139, 92, 246, 0.3);
+            --db-metric-number: #60a5fa;
+            --db-header-gradient: linear-gradient(90deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
+            --db-header-text: #f8fafc;
+            --db-input-bg: rgba(15, 23, 42, 0.5);
+            --db-input-border: rgba(255, 255, 255, 0.1);
+            --db-btn-bg: #3b82f6;
+            --db-btn-hover: #60a5fa;
+            --db-btn-text: #ffffff;
+            --db-ann-item-bg: rgba(15, 23, 42, 0.4);
+            --db-ann-item-border: rgba(255, 255, 255, 0.05);
+            --db-chart-text: #cbd5e1;
+            --db-chart-border: #1e293b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--db-page-bg);
+            color: var(--db-text-main);
+        }
+
+        .db-container {
+            max-width: 1300px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .db-header {
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .db-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, var(--db-text-main), var(--db-text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .db-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .db-metric-card {
+            background: var(--db-metric-bg);
+            border: 1px solid var(--db-metric-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            box-shadow: inset 0 2px 10px rgba(255, 255, 255, 0.02);
+            transition: transform 0.2s ease;
+        }
+
+        .db-metric-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .db-metric-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--db-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .db-metric-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--db-metric-number);
+            line-height: 1;
+        }
+
+        .db-main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        @media (max-width: 900px) {
+            .db-main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .db-panel {
+            background: var(--db-card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--db-card-border);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--db-card-shadow);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .db-panel-header {
+            background: var(--db-header-gradient);
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--db-card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .db-panel-header h2 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--db-header-text);
+        }
+
+        .db-panel-body {
+            padding: 1.5rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .db-charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        @media (max-width: 600px) {
+            .db-charts-container { grid-template-columns: 1fr; }
+        }
+
+        .db-chart-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .db-chart-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--db-text-muted);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .db-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.02);
+            border-top: 1px solid var(--db-card-border);
+        }
+
+        .db-toggle-label {
+            font-weight: 600;
+            color: var(--db-text-main);
+        }
+
+        .db-toggle-status {
+            font-size: 0.85rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 99px;
+            font-weight: 600;
+            margin-left: 0.75rem;
+        }
+        .db-status-on { background: rgba(34, 197, 94, 0.1); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .db-status-off { background: rgba(239, 68, 68, 0.1); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.2); }
+        [data-theme="dark"] .db-status-on { color: #4ade80; }
+        [data-theme="dark"] .db-status-off { color: #f87171; }
+
+        .db-textarea {
+            width: 100%;
+            background: var(--db-input-bg);
+            border: 1px solid var(--db-input-border);
+            color: var(--db-text-main);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Inter', sans-serif;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.2s;
+        }
+        .db-textarea:focus {
+            outline: none;
+            border-color: var(--db-metric-number);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .db-btn {
+            background: var(--db-btn-bg);
+            color: var(--db-btn-text);
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .db-btn:hover { background: var(--db-btn-hover); transform: translateY(-1px); }
+
+        .db-ann-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .db-ann-item {
+            background: var(--db-ann-item-bg);
+            border: 1px solid var(--db-ann-item-border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            transition: transform 0.2s;
+        }
+        .db-ann-item:hover { transform: translateX(4px); }
+
+        .db-ann-head {
+            font-size: 0.85rem;
+            color: var(--db-text-muted);
+            margin-bottom: 0.75rem;
+            font-weight: 500;
+        }
+        .db-ann-content {
+            font-size: 0.95rem;
+            color: var(--db-text-main);
+            line-height: 1.6;
+        }
+
+        .empty-text {
+            color: var(--db-text-muted);
+            font-style: italic;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        /* Toggles inside form */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e1; transition: .4s; border-radius: 24px;
+        }
+        [data-theme="dark"] .toggle-slider { background-color: #475569; }
+        .toggle-slider:before {
+            position: absolute; content: ""; height: 18px; width: 18px;
+            left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;
+        }
+        .toggle-switch input:checked + .toggle-slider { background-color: #22c55e; }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Modal specific overrides */
+        #search-modal .admin-modal { 
+            max-height: 92vh; 
+            overflow-y: auto; 
+            background: var(--db-card-bg); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid var(--db-card-border); 
+            box-shadow: var(--db-card-shadow); 
+            color: var(--db-text-main);
+        }
+        #search-modal .modal-header h3 { color: var(--db-text-main); }
+        #search-modal .form-label { color: var(--db-text-muted); }
+        #search-modal .form-control { background: var(--db-input-bg); border-color: var(--db-input-border); color: var(--db-text-main); }
+        #search-modal .form-control[readonly] { opacity: 0.7; }
+        
         .pc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 0.5rem; margin-top: 0.4rem; }
         .pc-grid-wrap { max-height: 220px; overflow-y: auto; padding-right: 0.25rem; }
-        .pc-chip { border: 1px solid #d1d5db; border-radius: 8px; padding: 0.45rem 0.35rem; font-size: 0.85rem; text-align: center; cursor: pointer; user-select: none; }
-        .pc-available { background: #dcfce7; border-color: #22c55e; color: #166534; }
-        .pc-unavailable { background: #fee2e2; border-color: #ef4444; color: #991b1b; cursor: not-allowed; opacity: 0.8; }
-        .pc-selected { outline: 2px solid #2563eb; font-weight: 600; }
+        .pc-chip { background: var(--db-input-bg); border: 1px solid var(--db-input-border); color: var(--db-text-main); border-radius: 8px; padding: 0.45rem 0.35rem; font-size: 0.85rem; text-align: center; cursor: pointer; user-select: none; transition: all 0.2s; }
+        .pc-chip:hover:not(:disabled) { border-color: var(--db-metric-number); }
+        .pc-available { background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.3); color: #16a34a; }
+        .pc-unavailable { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #dc2626; cursor: not-allowed; opacity: 0.6; }
+        [data-theme="dark"] .pc-available { color: #4ade80; }
+        [data-theme="dark"] .pc-unavailable { color: #f87171; }
+        .pc-selected { outline: 2px solid #3b82f6; font-weight: 600; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); background: rgba(59, 130, 246, 0.1); }
     </style>
 </head>
 <body>
@@ -588,48 +910,69 @@ if ($search_result) {
     </ul>
 </nav>
 
-<div class="admin-page">
+<div class="db-container">
     <?php if ($alert_message !== ''): ?>
-        <div class="alert <?php echo $alert_type === 'error' ? 'alert-error' : 'alert-success'; ?> admin-alert"><?php echo htmlspecialchars($alert_message); ?></div>
+        <div class="alert <?php echo $alert_type === 'error' ? 'alert-error' : 'alert-success'; ?> admin-alert" style="margin-bottom: 2rem; border-radius: 12px; box-shadow: var(--db-card-shadow);"><?php echo htmlspecialchars($alert_message); ?></div>
     <?php endif; ?>
 
-    <div class="admin-grid">
-        <section class="admin-card">
-            <div class="admin-card-title">Statistics & Analytics</div>
+    <div class="db-header">
+        <h1>Dashboard Overview</h1>
+    </div>
 
-            <div class="admin-stat-list">
-                <p><strong>Students Registered:</strong> <?php echo $stats['students_registered']; ?></p>
-                <p><strong>Currently Sit-in:</strong> <?php echo $stats['currently_sit_in']; ?></p>
-                <p><strong>Total Sit-in:</strong> <?php echo $stats['total_sit_in']; ?></p>
+    <div class="db-metrics-grid">
+        <div class="db-metric-card">
+            <span class="db-metric-title">Registered Students</span>
+            <span class="db-metric-number"><?php echo $stats['students_registered']; ?></span>
+        </div>
+        <div class="db-metric-card">
+            <span class="db-metric-title">Active Sit-in Sessions</span>
+            <span class="db-metric-number"><?php echo $stats['currently_sit_in']; ?></span>
+        </div>
+        <div class="db-metric-card">
+            <span class="db-metric-title">Total Sit-ins Logged</span>
+            <span class="db-metric-number"><?php echo $stats['total_sit_in']; ?></span>
+        </div>
+    </div>
+
+    <div class="db-main-grid">
+        <div class="db-panel">
+            <div class="db-panel-header">
+                <h2>📊 Statistics & Analytics</h2>
+            </div>
+            
+            <div class="db-panel-body">
+                <div class="db-charts-container">
+                    <div class="db-chart-wrapper">
+                        <h3 class="db-chart-title">Course Distribution</h3>
+                        <?php if (empty($course_stats)): ?>
+                            <p class="empty-text">No course data yet.</p>
+                        <?php else: ?>
+                            <div style="width: 100%; max-width: 250px;">
+                                <canvas id="coursePieChart"></canvas>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="db-chart-wrapper">
+                        <h3 class="db-chart-title">Language Usage</h3>
+                        <?php if ($max_language_total <= 0): ?>
+                            <p class="empty-text">No language usage data yet.</p>
+                        <?php else: ?>
+                            <div style="width: 100%; max-width: 250px;">
+                                <canvas id="languagePieChart"></canvas>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
 
-            <div class="pie-charts-row">
-                <div class="pie-chart-box">
-                    <h3 class="pie-chart-title">Course Distribution</h3>
-                    <?php if (empty($course_stats)): ?>
-                        <p class="empty-text">No course data yet.</p>
-                    <?php else: ?>
-                        <canvas id="coursePieChart" width="220" height="220"></canvas>
-                    <?php endif; ?>
-                </div>
-                <div class="pie-chart-box">
-                    <h3 class="pie-chart-title">Language Usage</h3>
-                    <?php if ($max_language_total <= 0): ?>
-                        <p class="empty-text">No language usage data yet.</p>
-                    <?php else: ?>
-                        <canvas id="languagePieChart" width="220" height="220"></canvas>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <div class="reservation-toggle-section">
-                <div class="reservation-toggle-info">
-                    <strong>Reservation System</strong>
-                    <span class="reservation-toggle-status <?php echo $reservation_enabled ? 'toggle-on' : 'toggle-off'; ?>">
+            <div class="db-toggle-row">
+                <div style="display:flex; align-items:center;">
+                    <span class="db-toggle-label">Reservation System Status</span>
+                    <span class="db-toggle-status <?php echo $reservation_enabled ? 'db-status-on' : 'db-status-off'; ?>">
                         <?php echo $reservation_enabled ? 'Enabled' : 'Disabled'; ?>
                     </span>
                 </div>
-                <form method="POST" class="inline-form">
+                <form method="POST" style="margin:0; display:flex; align-items:center;">
                     <input type="hidden" name="action" value="toggle_reservation">
                     <label class="toggle-switch">
                         <input type="checkbox" <?php echo $reservation_enabled ? 'checked' : ''; ?> onchange="this.form.submit();">
@@ -637,33 +980,40 @@ if ($search_result) {
                     </label>
                 </form>
             </div>
-        </section>
+        </div>
 
-        <section class="admin-card">
-            <div class="admin-card-title">Announcement</div>
-
-            <form method="POST" class="announcement-form">
-                <input type="hidden" name="action" value="post_announcement">
-                <textarea class="form-control" name="announcement" rows="3" placeholder="New Announcement"></textarea>
-                <button type="submit" class="admin-btn admin-btn-primary">Submit</button>
-            </form>
-
-            <h2 class="admin-section-subtitle">Posted Announcement</h2>
-            <div class="announcement-list">
-                <?php if (empty($announcements)): ?>
-                    <p class="empty-text">No announcements yet.</p>
-                <?php else: ?>
-                    <?php foreach ($announcements as $ann): ?>
-                        <article class="announcement-item">
-                            <div class="announcement-head"><?php echo htmlspecialchars($ann['author_name']); ?> | <?php echo htmlspecialchars(date('Y-M-d', strtotime($ann['created_at']))); ?></div>
-                            <div class="announcement-content"><?php echo nl2br(htmlspecialchars($ann['content'])); ?></div>
-                        </article>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+        <div class="db-panel">
+            <div class="db-panel-header">
+                <h2>📢 Broadcast Announcements</h2>
             </div>
-        </section>
-    </div>
+            
+            <div class="db-panel-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="post_announcement">
+                    <textarea class="db-textarea" name="announcement" rows="3" placeholder="What's the latest update for students?" required></textarea>
+                    <div style="text-align: right; margin-top: 1rem;">
+                        <button type="submit" class="db-btn">Publish Announcement</button>
+                    </div>
+                </form>
 
+                <div style="margin-top: 1rem; border-top: 1px solid var(--db-card-border); padding-top: 1.5rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--db-text-main); margin-bottom: 1rem;">Recent Broadcasts</h3>
+                    <div class="db-ann-list">
+                        <?php if (empty($announcements)): ?>
+                            <p class="empty-text">No announcements yet.</p>
+                        <?php else: ?>
+                            <?php foreach ($announcements as $ann): ?>
+                                <article class="db-ann-item">
+                                    <div class="db-ann-head">Posted by <strong><?php echo htmlspecialchars($ann['author_name']); ?></strong> on <?php echo htmlspecialchars(date('M d, Y • h:i A', strtotime($ann['created_at']))); ?></div>
+                                    <div class="db-ann-content"><?php echo nl2br(htmlspecialchars($ann['content'])); ?></div>
+                                </article>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="modal-overlay <?php echo $open_search_modal ? 'is-open' : ''; ?>" id="search-modal">
@@ -679,13 +1029,13 @@ if ($search_result) {
                 <label class="form-label" for="search-student-id">ID Number or Student Name</label>
                 <div class="modal-search-row">
                     <input type="text" id="search-student-id" name="search_id" class="form-control" placeholder="Enter ID Number or Student Name" value="<?php echo htmlspecialchars($_GET['search_id'] ?? ''); ?>">
-                    <button type="submit" class="admin-btn admin-btn-secondary">Search</button>
+                    <button type="submit" class="db-btn">Search</button>
                 </div>
             </form>
 
             <?php if (isset($_GET['search_id']) && trim($_GET['search_id']) !== ''): ?>
-                <div class="search-result-box">
-                    <p class="empty-text">No student found.</p>
+                <div class="search-result-box" style="margin-top:1rem; padding:1rem; border-radius:8px; background:var(--db-input-bg); border:1px solid var(--db-input-border);">
+                    <p class="empty-text" style="margin:0;">No student found.</p>
                 </div>
             <?php endif; ?>
         <?php else: ?>
@@ -758,9 +1108,9 @@ if ($search_result) {
                     <input type="text" class="form-control" id="sitin-remaining-session" value="<?php echo htmlspecialchars($sitin_remaining_sessions); ?>" readonly>
                 </div>
 
-                <div class="sitin-modal-actions">
-                    <a href="admin_dashboard.php" class="admin-btn admin-btn-muted">Close</a>
-                    <button type="submit" class="admin-btn admin-btn-secondary">Sit In</button>
+                <div class="sitin-modal-actions" style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:1rem;">
+                    <a href="admin_dashboard.php" class="db-btn" style="background:var(--db-input-bg); color:var(--db-text-main); border:1px solid var(--db-input-border); text-decoration:none;">Cancel</a>
+                    <button type="submit" class="db-btn">Start Sit In</button>
                 </div>
             </form>
         <?php endif; ?>
@@ -937,62 +1287,94 @@ if ($search_result) {
 
 <script>
 (function () {
-    var courseColors = ['#0ea5e9', '#f43f5e', '#f59e0b', '#8b5cf6', '#14b8a6', '#ec4899', '#6366f1', '#10b981'];
-    var languageColors = ['#0ea5e9', '#f43f5e', '#f59e0b', '#8b5cf6', '#14b8a6', '#ec4899', '#6366f1'];
+    var courseColors = ['#3b82f6', '#f43f5e', '#f59e0b', '#8b5cf6', '#14b8a6', '#ec4899', '#6366f1', '#10b981'];
+    var languageColors = ['#0ea5e9', '#ec4899', '#f59e0b', '#8b5cf6', '#14b8a6', '#f43f5e', '#6366f1'];
 
     var courseData = <?php echo json_encode(array_map(function($c) { return ['label' => $c['course'], 'value' => (int) $c['total']]; }, $course_stats)); ?>;
     var languageData = <?php echo json_encode(array_map(function($l) { return ['label' => $l['label'], 'value' => (int) $l['total']]; }, $language_stats)); ?>;
 
-    var courseCanvas = document.getElementById('coursePieChart');
-    if (courseCanvas && courseData.length > 0) {
-        new Chart(courseCanvas, {
-            type: 'doughnut',
-            data: {
-                labels: courseData.map(function(d) { return d.label; }),
-                datasets: [{
-                    data: courseData.map(function(d) { return d.value; }),
-                    backgroundColor: courseColors.slice(0, courseData.length),
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'bottom', labels: { font: { size: 11, family: 'Inter' }, padding: 12 } }
-                }
-            }
-        });
+    function getChartThemeVariables() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        return {
+            textColor: isDark ? '#94a3b8' : '#475569',
+            borderColor: isDark ? '#1e293b' : '#ffffff'
+        };
     }
 
-    var languageCanvas = document.getElementById('languagePieChart');
-    if (languageCanvas && languageData.length > 0) {
-        var filteredLang = languageData.filter(function(d) { return d.value > 0; });
-        if (filteredLang.length === 0) filteredLang = languageData;
-        new Chart(languageCanvas, {
-            type: 'doughnut',
-            data: {
-                labels: filteredLang.map(function(d) { return d.label; }),
-                datasets: [{
-                    data: filteredLang.map(function(d) { return d.value; }),
-                    backgroundColor: languageColors.slice(0, filteredLang.length),
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'bottom', labels: { font: { size: 11, family: 'Inter' }, padding: 12 } }
+    var courseChart = null;
+    var languageChart = null;
+
+    function initCharts() {
+        var theme = getChartThemeVariables();
+
+        var courseCanvas = document.getElementById('coursePieChart');
+        if (courseCanvas && courseData.length > 0) {
+            if (courseChart) courseChart.destroy();
+            courseChart = new Chart(courseCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: courseData.map(function(d) { return d.label; }),
+                    datasets: [{
+                        data: courseData.map(function(d) { return d.value; }),
+                        backgroundColor: courseColors.slice(0, courseData.length),
+                        borderWidth: 3,
+                        borderColor: theme.borderColor,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: theme.textColor, font: { size: 12, family: 'Inter', weight: '500' }, padding: 15 } }
+                    }
                 }
+            });
+        }
+
+        var languageCanvas = document.getElementById('languagePieChart');
+        if (languageCanvas && languageData.length > 0) {
+            var filteredLang = languageData.filter(function(d) { return d.value > 0; });
+            if (filteredLang.length === 0) filteredLang = languageData;
+            if (languageChart) languageChart.destroy();
+            languageChart = new Chart(languageCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: filteredLang.map(function(d) { return d.label; }),
+                    datasets: [{
+                        data: filteredLang.map(function(d) { return d.value; }),
+                        backgroundColor: languageColors.slice(0, filteredLang.length),
+                        borderWidth: 3,
+                        borderColor: theme.borderColor,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: theme.textColor, font: { size: 12, family: 'Inter', weight: '500' }, padding: 15 } }
+                    }
+                }
+            });
+        }
+    }
+
+    initCharts();
+
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === "data-theme") {
+                initCharts();
             }
         });
-    }
+    });
+    observer.observe(document.documentElement, { attributes: true });
+
 })();
 </script>
-
 
 <script src="theme.js"></script>
 </body>
