@@ -71,6 +71,7 @@ $sql = "SELECT
             u.middle_name,
             u.last_name,
             u.course,
+            u.course_level,
             TIMESTAMPDIFF(MINUTE, s.started_at, s.ended_at) AS duration_minutes
         FROM sit_in_records s
         INNER JOIN users u ON u.id = s.user_id
@@ -95,19 +96,36 @@ if (file_exists($logo_path)) {
     $logo_base64 = 'data:image/png;base64,' . base64_encode($logo_data);
 }
 
+$uclogo_path = 'uclogo.png';
+$uclogo_base64 = '';
+if (file_exists($uclogo_path)) {
+    $uclogo_data = file_get_contents($uclogo_path);
+    $uclogo_base64 = 'data:image/png;base64,' . base64_encode($uclogo_data);
+}
+
 $pdf_records = [];
+$idx = 1;
 foreach ($records as $row) {
-    $name = $row['last_name'] . ', ' . $row['first_name'] . ($row['middle_name'] ? ' ' . $row['middle_name'] : '');
-    $lab_display = is_numeric($row['sit_lab']) ? 'Laboratory ' . $row['sit_lab'] : $row['sit_lab'];
+    $student_name = trim($row['first_name'] . ' ' . ($row['middle_name'] ? $row['middle_name'] . ' ' : '') . $row['last_name']);
+    $started_formatted = date('M d, Y h:i A', strtotime($row['started_at']));
+    $ended_formatted = $row['ended_at'] ? date('M d, Y h:i A', strtotime($row['ended_at'])) : '-';
+    
+    $duration_min = (int) ($row['duration_minutes'] ?? 0);
+    $d_hours = floor($duration_min / 60);
+    $d_mins = $duration_min % 60;
+    $duration_display = ($d_hours > 0 ? $d_hours . 'h ' : '') . $d_mins . 'm';
+    
     $pdf_records[] = [
-        'id' => $row['id'],
-        'student' => $name,
+        'index' => $idx++,
+        'id_number' => $row['id_number'],
+        'name' => $student_name,
         'course' => $row['course'],
-        'lab' => $lab_display,
+        'year' => $row['course_level'] ?? '',
         'purpose' => $row['purpose'],
-        'status' => 'Completed',
-        'started' => date('Y-m-d H:i', strtotime($row['started_at'])),
-        'ended' => $row['ended_at'] ? date('Y-m-d H:i', strtotime($row['ended_at'])) : '-'
+        'lab' => $row['sit_lab'],
+        'started' => $started_formatted,
+        'ended' => $ended_formatted,
+        'duration' => $duration_display
     ];
 }
 $pending_count = 0;
@@ -295,112 +313,127 @@ $total_hours = round($total_minutes / 60, 1);
 
         const pdfData = <?php echo json_encode($pdf_records); ?>;
         const logoBase64 = "<?php echo $logo_base64; ?>";
+        const uclogoBase64 = "<?php echo $uclogo_base64; ?>";
 
-        // Logo Image
-        if (logoBase64) {
-            doc.addImage(logoBase64, 'PNG', 14, 10, 15, 15);
+        // 1. Left circular UC Logo
+        if (uclogoBase64) {
+            doc.addImage(uclogoBase64, 'PNG', 14, 9, 15, 15);
         }
 
-        // Header Text next to Logo
+        // 2. Right shield CCS Logo
+        if (logoBase64) {
+            doc.addImage(logoBase64, 'PNG', 181, 9, 15, 15);
+        }
+
+        // 3. Middle Centered Text Header
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(20, 40, 100); // Elegant dark navy blue
+        doc.text("University of Cebu", 105, 14, { align: "center" });
+
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(30, 60, 120);
+        doc.text("College of Computer Studies", 105, 19, { align: "center" });
+
+        doc.setFont("Helvetica", "italic");
+        doc.setFontSize(8.5);
+        doc.setTextColor(100, 110, 120);
+        doc.text("Sit-in Monitoring System Utilization Report", 105, 23.5, { align: "center" });
+
+        // 4. Thick Navy Blue Horizontal Bar
+        doc.setDrawColor(20, 50, 110);
+        doc.setLineWidth(1.2);
+        doc.line(14, 27, 196, 27);
+
+        // 5. Centered Document Title
         doc.setFont("Helvetica", "bold");
         doc.setFontSize(12);
-        doc.setTextColor(0, 0, 0);
-        doc.text("University of Cebu", 32, 16);
+        doc.setTextColor(20, 50, 110);
+        doc.text("SIT-IN RECORDS REPORT", 105, 34, { align: "center" });
 
-        doc.setFont("Helvetica", "normal");
-        doc.setFontSize(11);
-        doc.text("College of Computer Studies", 32, 21);
-
-        // Center Title: CCS Sit-in History Report
-        doc.setFont("Helvetica", "bold");
-        doc.setFontSize(16);
-        doc.text("CCS Sit-in History Report", 105, 34, { align: "center" });
-
-        // Metadata block on the left
-        doc.setFont("Helvetica", "bold");
-        doc.setFontSize(9);
+        // 6. Centered Metadata Subtitle
+        const generatedOn = "<?php echo date('M d, Y h:i A'); ?>";
+        const totalRecords = pdfData.length;
+        const metadataText = `Generated: ${generatedOn} | Total Records: ${totalRecords}`;
         
-        const dateFrom = "<?php echo htmlspecialchars($filter_date_from); ?>";
-        const dateTo = "<?php echo htmlspecialchars($filter_date_to); ?>";
-        const lab = "<?php echo htmlspecialchars($filter_lab ? 'Laboratory ' . $filter_lab : ''); ?>";
-        const purpose = "<?php echo htmlspecialchars($filter_purpose ? $filter_purpose : ''); ?>";
-
-        let filterStr = "All records";
-        if (dateFrom || dateTo || lab || purpose) {
-            let parts = [];
-            if (dateFrom && dateTo) parts.push(`Date: ${dateFrom} to ${dateTo}`);
-            else if (dateFrom) parts.push(`Date From: ${dateFrom}`);
-            else if (dateTo) parts.push(`Date To: ${dateTo}`);
-            if (lab) parts.push(lab);
-            if (purpose) parts.push(purpose);
-            filterStr = parts.join(" | ");
-        }
-        doc.text(filterStr, 14, 44);
-
         doc.setFont("Helvetica", "normal");
+        doc.setFontSize(8.5);
         doc.setTextColor(100, 116, 139);
-        const generatedOn = "<?php echo date('Y-m-d H:i'); ?>";
-        doc.text("Generated on: " + generatedOn, 14, 49);
+        doc.text(metadataText, 105, 39, { align: "center" });
 
-        // Plain minimalist table matching mock-up
+        // 7. AutoTable Minimalist Grid to match screenshot
         doc.autoTable({
             columns: [
-                { header: 'ID', dataKey: 'id' },
-                { header: 'Student', dataKey: 'student' },
+                { header: '#', dataKey: 'index' },
+                { header: 'ID Number', dataKey: 'id_number' },
+                { header: 'Name', dataKey: 'name' },
                 { header: 'Course', dataKey: 'course' },
-                { header: 'Lab', dataKey: 'lab' },
+                { header: 'Year', dataKey: 'year' },
                 { header: 'Purpose', dataKey: 'purpose' },
-                { header: 'Status', dataKey: 'status' },
-                { header: 'Started', dataKey: 'started' },
-                { header: 'Ended', dataKey: 'ended' }
+                { header: 'Lab', dataKey: 'lab' },
+                { header: 'Time In', dataKey: 'started' },
+                { header: 'Time Out', dataKey: 'ended' },
+                { header: 'Duration', dataKey: 'duration' }
             ],
             body: pdfData,
-            startY: 53,
+            startY: 44,
             theme: 'plain',
             styles: {
-                fontSize: 8.5,
+                fontSize: 8,
                 cellPadding: 1.5,
-                textColor: [0, 0, 0]
+                textColor: [30, 41, 59],
+                valign: 'middle'
             },
             headStyles: {
                 fontStyle: 'bold',
-                textColor: [0, 0, 0],
+                textColor: [100, 116, 139],
             },
             columnStyles: {
-                0: { cellWidth: 8 },    // ID
-                1: { cellWidth: 55 },   // Student
-                2: { cellWidth: 15 },   // Course
-                3: { cellWidth: 25 },   // Lab
-                4: { cellWidth: 22 },   // Purpose
-                5: { cellWidth: 18 },   // Status
-                6: { cellWidth: 24 },   // Started
-                7: { cellWidth: 24 }    // Ended
+                0: { cellWidth: 6 },    // #
+                1: { cellWidth: 18 },   // ID Number
+                2: { cellWidth: 32 },   // Name
+                3: { cellWidth: 13 },   // Course
+                4: { cellWidth: 9 },    // Year
+                5: { cellWidth: 20 },   // Purpose
+                6: { cellWidth: 10 },   // Lab
+                7: { cellWidth: 28 },   // Time In
+                8: { cellWidth: 28 },   // Time Out
+                9: { cellWidth: 18 }    // Duration
             },
             didDrawCell: function(data) {
                 if (data.section === 'head') {
-                    doc.setDrawColor(0, 0, 0);
+                    doc.setDrawColor(220, 225, 230); // Clean light grey border
                     doc.setLineWidth(0.3);
-                    // Draw continuous solid line above header
+                    // Continuous solid line above header
                     doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
-                    // Draw continuous solid line below header
+                    // Continuous solid line below header
                     doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
                 }
             },
             margin: { top: 20, bottom: 20, left: 14, right: 14 }
         });
 
-        // Summary row below table
-        const finalY = doc.lastAutoTable.finalY || 53;
-        doc.setFont("Helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        const summaryText = `Total records: ${pdfData.length} | Completed: ${pdfData.length} | Active: 0`;
-        doc.text(summaryText, 14, finalY + 8);
+        // 8. Elegant Footer at bottom of A4 page
+        const pageHeight = doc.internal.pageSize.height || 297;
+        doc.setFont("Helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        
+        // Footer line
+        doc.setDrawColor(241, 245, 249);
+        doc.setLineWidth(0.3);
+        doc.line(14, pageHeight - 15, 196, pageHeight - 15);
+        
+        // Footer left and right text
+        doc.text("UC CCS Sit-in Monitoring System", 14, pageHeight - 10);
+        doc.text("Generated on " + generatedOn, 196, pageHeight - 10, { align: "right" });
 
-        // Save PDF file named after date
+        // Save PDF file
         const dateStr = new Date().toISOString().slice(0, 10);
         doc.save("sit_in_report_" + dateStr + ".pdf");
     }
+    </script>
     </script>
 
     <script src="theme.js"></script>

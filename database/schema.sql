@@ -54,3 +54,12 @@ CREATE TABLE IF NOT EXISTS reservations (
     INDEX idx_reservation_schedule (reservation_date, reservation_time),
     CONSTRAINT fk_reservation_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS lab_pcs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lab_name VARCHAR(50) NOT NULL,
+    pc_number VARCHAR(10) NOT NULL,
+    status ENUM('available', 'maintenance', 'in_use', 'reserved') NOT NULL DEFAULT 'available',
+    UNIQUE KEY unique_pc_lab (lab_name, pc_number)
+);
+

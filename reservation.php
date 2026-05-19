@@ -109,27 +109,20 @@ foreach ($lab_options as $lab_option) {
     $unavailable_pcs_by_lab[$lab_option] = [];
 }
 
-$pc_res = $conn->query("SELECT sit_lab, pc_number FROM sit_in_records WHERE status = 'active' AND pc_number IS NOT NULL AND pc_number <> ''");
+$pc_res = $conn->query("SELECT lab_name, pc_number, status FROM lab_pcs");
 if ($pc_res) {
     while ($pc_row = $pc_res->fetch_assoc()) {
-        $row_lab = trim((string) ($pc_row['sit_lab'] ?? ''));
+        $row_lab = trim((string) ($pc_row['lab_name'] ?? ''));
         $row_pc = strtoupper(trim((string) ($pc_row['pc_number'] ?? '')));
+        $status = trim((string) ($pc_row['status'] ?? ''));
         if ($row_lab !== '' && in_array($row_lab, $lab_options, true) && $row_pc !== '') {
-            $unavailable_pcs_by_lab[$row_lab][$row_pc] = true;
+            if ($status === 'maintenance' || $status === 'in_use' || $status === 'reserved') {
+                $unavailable_pcs_by_lab[$row_lab][$row_pc] = $status;
+            }
         }
     }
 }
 
-$pending_pc_res = $conn->query("SELECT sit_lab, pc_number FROM reservations WHERE status = 'pending' AND pc_number IS NOT NULL AND pc_number <> ''");
-if ($pending_pc_res) {
-    while ($pending_pc_row = $pending_pc_res->fetch_assoc()) {
-        $row_lab = trim((string) ($pending_pc_row['sit_lab'] ?? ''));
-        $row_pc = strtoupper(trim((string) ($pending_pc_row['pc_number'] ?? '')));
-        if ($row_lab !== '' && in_array($row_lab, $lab_options, true) && $row_pc !== '') {
-            $unavailable_pcs_by_lab[$row_lab][$row_pc] = true;
-        }
-    }
-}
 
 $selected_lab_for_pc = in_array($sit_lab, $lab_options, true) ? $sit_lab : '';
 $unavailable_pcs = $selected_lab_for_pc !== '' ? ($unavailable_pcs_by_lab[$selected_lab_for_pc] ?? []) : [];
@@ -249,10 +242,12 @@ $list_stmt->close();
     <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
     <style>
         .pc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 0.5rem; margin-top: 0.4rem; }
-        .pc-chip { border: 1px solid #d1d5db; border-radius: 8px; padding: 0.45rem 0.35rem; font-size: 0.85rem; text-align: center; cursor: pointer; user-select: none; }
+        .pc-chip { border: 1px solid #d1d5db; border-radius: 8px; padding: 0.45rem 0.35rem; font-size: 0.85rem; text-align: center; cursor: pointer; user-select: none; display:flex; flex-direction:column; justify-content:center; align-items:center; line-height: 1.2; }
         .pc-available { background: #dcfce7; border-color: #22c55e; color: #166534; }
-        .pc-unavailable { background: #fee2e2; border-color: #ef4444; color: #991b1b; cursor: not-allowed; opacity: 0.8; }
+        .pc-unavailable { background: #dbeafe; border-color: #3b82f6; color: #1e3a8a; cursor: not-allowed; opacity: 0.8; }
+        .pc-maintenance { background: #fee2e2; border-color: #ef4444; color: #991b1b; cursor: not-allowed; opacity: 0.8; }
         .pc-selected { outline: 2px solid #2563eb; font-weight: 600; }
+        .pc-chip small { font-size: 0.65rem; font-weight: normal; margin-top: 2px;}
     </style>
 </head>
 <body>
@@ -320,18 +315,36 @@ $list_stmt->close();
                 <input type="hidden" name="pc_number" id="pc_number" value="<?php echo htmlspecialchars($pc_number); ?>" required>
                 <div class="pc-grid" id="pc-grid">
                     <?php foreach ($pc_options as $pc_option): ?>
-                        <?php $is_unavailable = isset($unavailable_pcs[$pc_option]); ?>
+                        <?php 
+                            $status = $unavailable_pcs[$pc_option] ?? null;
+                            $is_unavailable = !!$status;
+                            $chip_class = 'pc-available';
+                            $chip_text = htmlspecialchars($pc_option);
+                            if ($is_unavailable) {
+                                if ($status === 'maintenance') {
+                                    $chip_class = 'pc-maintenance';
+                                    $chip_text .= '<br><small>Maintenance</small>';
+                                } else {
+                                    $chip_class = 'pc-unavailable';
+                                    $chip_text .= '<br><small>In Use</small>';
+                                }
+                            }
+                        ?>
                         <button
                             type="button"
-                            class="pc-chip <?php echo $is_unavailable ? 'pc-unavailable' : 'pc-available'; ?> <?php echo $pc_number === $pc_option ? 'pc-selected' : ''; ?>"
+                            class="pc-chip <?php echo $chip_class; ?> <?php echo $pc_number === $pc_option ? 'pc-selected' : ''; ?>"
                             data-pc="<?php echo htmlspecialchars($pc_option); ?>"
                             <?php echo $is_unavailable ? 'disabled' : ''; ?>
                         >
-                            <?php echo htmlspecialchars($pc_option); ?>
+                            <?php echo $chip_text; ?>
                         </button>
                     <?php endforeach; ?>
                 </div>
-                <p class="form-help" style="margin-top:0.45rem;">Green = available, Red = not available (per selected laboratory)</p>
+                <div class="pc-legend" style="margin-top: 15px; display: flex; gap: 15px; font-size: 13px; justify-content: center;">
+                    <span style="display: flex; align-items: center;"><div style="width: 12px; height: 12px; background: #22c55e; border-radius: 3px; margin-right: 5px;"></div> Available</span>
+                    <span style="display: flex; align-items: center;"><div style="width: 12px; height: 12px; background: #ef4444; border-radius: 3px; margin-right: 5px;"></div> Maintenance</span>
+                    <span style="display: flex; align-items: center;"><div style="width: 12px; height: 12px; background: #3b82f6; border-radius: 3px; margin-right: 5px;"></div> In-Use</span>
+                </div>
             </div>
 
             <div class="form-group" id="pc-select-hint" style="grid-column: 1 / -1; <?php echo $selected_lab_for_pc === '' ? '' : 'display:none;'; ?>">
@@ -441,15 +454,28 @@ $list_stmt->close();
 
         allChips.forEach(function (chip) {
             var chipPc = chip.getAttribute('data-pc') || '';
-            var isBlocked = !!blocked[chipPc];
+            var status = blocked[chipPc];
+            var isBlocked = !!status;
 
             chip.disabled = isBlocked;
-            chip.classList.remove('pc-available', 'pc-unavailable');
-            chip.classList.add(isBlocked ? 'pc-unavailable' : 'pc-available');
+            chip.classList.remove('pc-available', 'pc-unavailable', 'pc-maintenance');
+            
+            if (isBlocked) {
+                if (status === 'maintenance') {
+                    chip.classList.add('pc-maintenance');
+                    chip.innerHTML = chipPc + '<br><small>Maintenance</small>';
+                } else {
+                    chip.classList.add('pc-unavailable');
+                    chip.innerHTML = chipPc + '<br><small>In Use</small>';
+                }
+            } else {
+                chip.classList.add('pc-available');
+                chip.innerHTML = chipPc;
+            }
 
             if (isBlocked) {
-                chip.classList.remove('pc-selected');
-                if (pcInput.value === chipPc) {
+                if (chip.classList.contains('pc-selected')) {
+                    chip.classList.remove('pc-selected');
                     pcInput.value = '';
                 }
             }
