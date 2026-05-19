@@ -4593,3 +4593,582 @@ html[data-theme="dark"] .feedback-cancel-btn:hover {
     color: white;
 }
 
+/* ──────────────────────────────────────────────────────── */
+/* ── FORMULA 1 STYLE LEADERBOARD REDESIGN (LANDING PAGE) ── */
+/* ──────────────────────────────────────────────────────── */
+
+.f1-leaderboard-page {
+    background: #f1f5f9;
+    color: #1e293b;
+    min-height: 100vh;
+    padding-bottom: 5rem;
+    font-family: 'Inter', sans-serif;
+    position: relative;
+    overflow-x: hidden;
+}
+
+html[data-theme="dark"] .f1-leaderboard-page {
+    background: #0b0f19;
+    color: #f8fafc;
+}
+
+.f1-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem;
+}
+
+.f1-header {
+    text-align: center;
+    margin-bottom: 4rem;
+    position: relative;
+    animation: f1FadeInDown 0.8s ease-out;
+}
+
+.f1-logo-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(239, 68, 68, 0.1);
+    padding: 0.5rem 1.5rem;
+    border-radius: 99px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    margin-bottom: 1.5rem;
+}
+
+.f1-logo-text {
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #ef4444;
+}
+
+.f1-title {
+    font-size: 3rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin: 0 0 0.5rem 0;
+    background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+html[data-theme="dark"] .f1-title {
+    background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.f1-subtitle {
+    font-size: 1rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    font-weight: 600;
+}
+
+/* ── F1 PODIUM LAYOUT ── */
+.f1-podium {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 1.5rem;
+    margin-bottom: 5rem;
+    position: relative;
+    padding-top: 2rem;
+    animation: f1FadeInUp 1s ease-out;
+}
+
+.f1-podium-card {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 20px;
+    width: 320px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+html[data-theme="dark"] .f1-podium-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+}
+
+.f1-podium-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: var(--card-glow);
+}
+
+html[data-theme="dark"] .f1-podium-card:hover {
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6);
+}
+
+/* F1 Position specific heights & glowing styles */
+.f1-gold {
+    height: 480px;
+    z-index: 3;
+    --card-glow: #06b6d4; /* Neon Cyan */
+    border-top: 5px solid var(--card-glow);
+}
+.f1-silver {
+    height: 410px;
+    z-index: 2;
+    --card-glow: #f97316; /* McLaren Orange */
+    border-top: 5px solid var(--card-glow);
+}
+.f1-bronze {
+    height: 380px;
+    z-index: 1;
+    --card-glow: #ef4444; /* Ferrari Red */
+    border-top: 5px solid var(--card-glow);
+}
+
+.f1-gold::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at top, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+.f1-silver::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at top, rgba(249, 115, 22, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+.f1-bronze::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at top, rgba(239, 68, 68, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* Translucent giant background digits */
+.f1-podium-bg-digit {
+    position: absolute;
+    bottom: -30px;
+    right: -10px;
+    font-size: 15rem;
+    font-weight: 900;
+    line-height: 1;
+    color: rgba(0, 0, 0, 0.02);
+    pointer-events: none;
+    font-style: italic;
+    user-select: none;
+}
+
+html[data-theme="dark"] .f1-podium-bg-digit {
+    color: rgba(255, 255, 255, 0.04);
+}
+
+.f1-podium-badge {
+    position: absolute;
+    top: 1.5rem;
+    left: 1.5rem;
+    background: var(--card-glow);
+    color: #0b0f19;
+    font-weight: 900;
+    font-size: 0.95rem;
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.f1-podium-avatar-container {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    margin: 1.5rem auto 1.5rem;
+    border-radius: 50%;
+    padding: 4px;
+    background: linear-gradient(135deg, var(--card-glow), rgba(255,255,255,0.1));
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+}
+
+.f1-gold .f1-podium-avatar-container {
+    width: 120px;
+    height: 120px;
+    margin-top: 0.5rem;
+}
+
+.f1-podium-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #1e293b;
+    border: 3px solid #0b0f19;
+    color: #f8fafc;
+    font-weight: 800;
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.f1-gold .f1-podium-avatar {
+    font-size: 2.4rem;
+}
+
+.f1-podium-name {
+    font-size: 1.4rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+    margin: 0 0 0.4rem 0;
+    color: #0f172a;
+}
+
+html[data-theme="dark"] .f1-podium-name {
+    color: #f8fafc;
+}
+
+.f1-podium-course {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--card-glow);
+    margin-bottom: 2rem;
+}
+
+.f1-podium-stats {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    padding-top: 1.5rem;
+}
+
+html[data-theme="dark"] .f1-podium-stats {
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.f1-podium-stat {
+    text-align: center;
+}
+
+.f1-podium-stat-val {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+html[data-theme="dark"] .f1-podium-stat-val {
+    color: #f8fafc;
+}
+
+.f1-podium-stat-lbl {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+.f1-podium-score-pill {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #0f172a;
+    padding: 0.5rem 1.5rem;
+    border-radius: 99px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+html[data-theme="dark"] .f1-podium-score-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* ── F1 LIST LAYOUT (Ranks 4-10) ── */
+.f1-list-section {
+    animation: f1FadeInUp 1.2s ease-out;
+}
+
+.f1-list-header {
+    font-size: 1rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #ef4444;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid rgba(239, 68, 68, 0.2);
+    padding-bottom: 0.5rem;
+}
+
+.f1-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.f1-list-row {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 12px;
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+html[data-theme="dark"] .f1-list-row {
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.f1-list-row:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: rgba(0, 0, 0, 0.08);
+    transform: scale(1.01) translateY(-2px);
+    box-shadow: 0 10px 25px -10px rgba(0,0,0,0.08);
+}
+
+html[data-theme="dark"] .f1-list-row:hover {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 25px -10px rgba(0,0,0,0.5);
+}
+
+/* Course vertical indicator line */
+.f1-course-indicator {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+}
+
+/* Course colors */
+.course-bsit { background: #06b6d4; --indicator-color: #06b6d4; }
+.course-bscs { background: #ef4444; --indicator-color: #ef4444; }
+.course-bsis { background: #f97316; --indicator-color: #f97316; }
+
+.f1-list-rank {
+    font-size: 1.5rem;
+    font-weight: 900;
+    font-style: italic;
+    color: #64748b;
+    width: 35px;
+    text-align: center;
+}
+
+.f1-list-student {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex: 1.5;
+}
+
+.f1-list-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #e2e8f0;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: #0f172a;
+    font-weight: 800;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+}
+
+html[data-theme="dark"] .f1-list-avatar {
+    background: #1e293b;
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #f8fafc;
+}
+
+.f1-list-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.f1-list-name {
+    font-size: 1.1rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #0f172a;
+}
+
+html[data-theme="dark"] .f1-list-name {
+    color: #f8fafc;
+}
+
+.f1-list-id {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: monospace;
+    color: #64748b;
+}
+
+.f1-list-course-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.02);
+    color: #475569;
+    flex: 0.8;
+    justify-content: center;
+}
+
+html[data-theme="dark"] .f1-list-course-badge {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.03);
+    color: #cbd5e1;
+}
+
+.bsit-badge { border-color: rgba(6, 182, 212, 0.2) !important; color: #06b6d4 !important; }
+.bscs-badge { border-color: rgba(239, 68, 68, 0.2) !important; color: #ef4444 !important; }
+.bsis-badge { border-color: rgba(249, 115, 22, 0.2) !important; color: #f97316 !important; }
+
+.f1-list-stats {
+    display: flex;
+    gap: 2rem;
+    flex: 1.5;
+    justify-content: space-around;
+}
+
+.f1-list-stat-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.f1-list-stat-val {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #334155;
+}
+
+html[data-theme="dark"] .f1-list-stat-val {
+    color: #cbd5e1;
+}
+
+.f1-list-stat-lbl {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+}
+
+.f1-list-score {
+    flex: 0.6;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.f1-list-score-pill {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: #334155;
+    padding: 0.4rem 1.2rem;
+    border-radius: 99px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    text-align: center;
+    min-width: 60px;
+}
+
+html[data-theme="dark"] .f1-list-score-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+}
+
+
+/* Animations */
+@keyframes f1FadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes f1FadeInDown {
+    from { opacity: 0; transform: translateY(-30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── RESPONSIVE F1 LEADERBOARD ── */
+@media (max-width: 1024px) {
+    .f1-podium {
+        flex-direction: column;
+        align-items: center;
+        gap: 2rem;
+    }
+    .f1-podium-card {
+        height: auto !important;
+        width: 100%;
+        max-width: 400px;
+    }
+    .f1-gold {
+        order: -1; /* Keep gold at the top of the stack on mobile */
+    }
+    .f1-list-row {
+        flex-direction: column;
+        gap: 1.25rem;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    .f1-list-student {
+        flex-direction: column;
+        width: 100%;
+    }
+    .f1-list-course-badge {
+        width: 100%;
+        max-width: 200px;
+    }
+    .f1-list-stats {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .f1-list-score {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+
