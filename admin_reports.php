@@ -142,10 +142,10 @@ $total_hours = round($total_minutes / 60, 1);
         <li><a href="admin_dashboard.php">Home</a></li>
         <li><a href="admin_dashboard.php?open=search">Search</a></li>
         <li><a href="admin_students.php">Students</a></li>
-        <li><a href="admin_current_sitin.php">View Current Sitin</a></li>
-        <li><a href="admin_sitin_history.php">View Sit-in Records</a></li>
+        <li><a href="admin_current_sitin.php">Current Sitin</a></li>
+        <li><a href="admin_sitin_history.php">Sit-in Records</a></li>
         <li><a href="admin_reports.php">Reports</a></li>
-        <li><a href="admin_feedback_reports.php">Feedback Reports</a></li>
+        <li><a href="admin_feedback_reports.php">Feedback</a></li>
         <li><a href="admin_leaderboard.php">Leaderboard</a></li>
         <li><a href="admin_lab_software.php">Lab Software</a></li>
         <li><a href="admin_reservations.php">Reservations<?php if ($pending_count > 0): ?> <span class="badge-pill"><?php echo $pending_count; ?></span><?php endif; ?></a></li>
