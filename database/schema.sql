@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     sit_lab VARCHAR(50) NOT NULL,
     reservation_date DATE NOT NULL,
     reservation_time TIME NOT NULL,
-    status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+    status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
     admin_note VARCHAR(255) NULL,
     reviewed_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

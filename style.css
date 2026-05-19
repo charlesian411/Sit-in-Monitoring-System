@@ -1156,6 +1156,37 @@ nav {
     color: #991b1b;
 }
 
+.status-cancelled {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.btn-cancel-reservation {
+    background: #ef4444;
+    color: #fff;
+    border: 1px solid #ef4444;
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-cancel-reservation:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+}
+
+.btn-cancel-reservation:active {
+    transform: translateY(0);
+}
+
 .student-reservation-page {
     max-width: 980px;
 }
@@ -2680,6 +2711,11 @@ html[data-theme="dark"] .status-badge.status-approved {
 html[data-theme="dark"] .status-badge.status-rejected {
     background: #450a0a;
     color: #fca5a5;
+}
+
+html[data-theme="dark"] .status-badge.status-cancelled {
+    background: #334155;
+    color: #cbd5e1;
 }
 
 html[data-theme="dark"] .status-badge.status-active {

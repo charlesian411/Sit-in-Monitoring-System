@@ -40,7 +40,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS reservations (
     sit_lab VARCHAR(50) NOT NULL,
     reservation_date DATE NOT NULL,
     reservation_time TIME NOT NULL,
-    status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+    status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
     admin_note VARCHAR(255) NULL,
     reviewed_at TIMESTAMP NULL,
     student_notified TINYINT(1) NOT NULL DEFAULT 0,
@@ -50,6 +50,14 @@ $conn->query("CREATE TABLE IF NOT EXISTS reservations (
     INDEX idx_reservation_schedule (reservation_date, reservation_time),
     CONSTRAINT fk_reservation_user_student_dashboard FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )");
+
+$status_column_check = $conn->query("SHOW COLUMNS FROM reservations LIKE 'status'");
+if ($status_column_check) {
+    $status_col_row = $status_column_check->fetch_assoc();
+    if ($status_col_row && strpos($status_col_row['Type'], 'cancelled') === false) {
+        $conn->query("ALTER TABLE reservations MODIFY COLUMN status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending'");
+    }
+}
 
 $conn->query("CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -76,6 +84,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'mark
     $res_stmt->execute();
     $res_stmt->close();
 
+    header("Location: dashboard.php");
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'cancel_reservation')) {
+    $reservation_id = (int) ($_POST['reservation_id'] ?? 0);
+    $user_id = (int) $_SESSION['user_id'];
+
+    if ($reservation_id > 0) {
+        $check_stmt = $conn->prepare("SELECT id FROM reservations WHERE id = ? AND user_id = ? AND status = 'pending' LIMIT 1");
+        $check_stmt->bind_param("ii", $reservation_id, $user_id);
+        $check_stmt->execute();
+        $check_res = $check_stmt->get_result();
+
+        if ($check_res->num_rows > 0) {
+            $cancel_stmt = $conn->prepare("UPDATE reservations SET status = 'cancelled' WHERE id = ?");
+            $cancel_stmt->bind_param("i", $reservation_id);
+            if ($cancel_stmt->execute()) {
+                $_SESSION['cancel_success'] = "Reservation cancelled successfully.";
+            } else {
+                $_SESSION['cancel_error'] = "Unable to cancel reservation.";
+            }
+            $cancel_stmt->close();
+        } else {
+            $_SESSION['cancel_error'] = "Reservation not found or cannot be cancelled.";
+        }
+        $check_stmt->close();
+    }
     header("Location: dashboard.php");
     exit();
 }
@@ -190,6 +226,16 @@ while ($row = $recent_res->fetch_assoc()) {
     $recent_sessions[] = $row;
 }
 $recent_stmt->close();
+
+$my_reservations = [];
+$res_stmt = $conn->prepare("SELECT id, purpose, sit_lab, pc_number, reservation_date, reservation_time, status, admin_note, created_at FROM reservations WHERE user_id = ? ORDER BY created_at DESC LIMIT 10");
+$res_stmt->bind_param("i", $_SESSION['user_id']);
+$res_stmt->execute();
+$res_data = $res_stmt->get_result();
+while ($row = $res_data->fetch_assoc()) {
+    $my_reservations[] = $row;
+}
+$res_stmt->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -221,6 +267,12 @@ $recent_stmt->close();
 <div class="student-dashboard-wrapper student-dashboard-page">
     <?php if (isset($_GET['updated']) && $_GET['updated'] === '1'): ?>
         <div class="alert alert-success">Profile updated successfully.</div>
+    <?php endif; ?>
+    <?php if (isset($_SESSION['cancel_success'])): ?>
+        <div class="alert alert-success"><?php echo htmlspecialchars($_SESSION['cancel_success']); unset($_SESSION['cancel_success']); ?></div>
+    <?php endif; ?>
+    <?php if (isset($_SESSION['cancel_error'])): ?>
+        <div class="alert alert-error"><?php echo htmlspecialchars($_SESSION['cancel_error']); unset($_SESSION['cancel_error']); ?></div>
     <?php endif; ?>
 
     <div class="student-dashboard-layout">
@@ -301,6 +353,57 @@ $recent_stmt->close();
             <div class="summary-stat-label">Longest Session</div>
         </div>
     </div>
+
+    <!-- Reservations Table -->
+    <section class="student-panel" style="min-height: auto; margin-bottom: 1.5rem;">
+        <div class="student-panel-title">🖥️ My Reservations</div>
+        <div class="admin-table-wrap" style="border: none; border-radius: 0;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Purpose</th>
+                        <th>Lab</th>
+                        <th>PC</th>
+                        <th>Schedule</th>
+                        <th>Status</th>
+                        <th>Admin Note</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($my_reservations)): ?>
+                        <tr>
+                            <td colspan="7" class="empty-table">No reservations yet.</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($my_reservations as $item): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($item['purpose']); ?></td>
+                                <td><?php echo htmlspecialchars($item['sit_lab']); ?></td>
+                                <td><?php echo htmlspecialchars($item['pc_number'] ?? '-'); ?></td>
+                                <td><?php echo htmlspecialchars(date('M d, Y', strtotime($item['reservation_date'])) . ' ' . date('h:i A', strtotime($item['reservation_time']))); ?></td>
+                                <td>
+                                    <span class="status-badge status-<?php echo htmlspecialchars($item['status']); ?>"><?php echo htmlspecialchars(ucfirst($item['status'])); ?></span>
+                                </td>
+                                <td><?php echo htmlspecialchars($item['admin_note'] ?? '-'); ?></td>
+                                <td>
+                                    <?php if ($item['status'] === 'pending'): ?>
+                                        <form method="POST" onsubmit="return confirm('Are you sure you want to cancel this reservation?');" style="margin: 0; display: inline;">
+                                            <input type="hidden" name="action" value="cancel_reservation">
+                                            <input type="hidden" name="reservation_id" value="<?php echo (int) $item['id']; ?>">
+                                            <button type="submit" class="btn-cancel-reservation">Cancel</button>
+                                        </form>
+                                    <?php else: ?>
+                                        <span class="empty-text">-</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </section>
 
     <!-- Sessions Table -->
     <section class="student-panel" style="min-height: auto;">

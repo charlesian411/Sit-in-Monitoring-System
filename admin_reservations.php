@@ -29,7 +29,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS reservations (
     pc_number VARCHAR(10) NOT NULL,
     reservation_date DATE NOT NULL,
     reservation_time TIME NOT NULL,
-    status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+    status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
     admin_note VARCHAR(255) NULL,
     reviewed_at TIMESTAMP NULL,
     student_notified TINYINT(1) NOT NULL DEFAULT 0,
@@ -39,6 +39,14 @@ $conn->query("CREATE TABLE IF NOT EXISTS reservations (
     INDEX idx_reservation_schedule (reservation_date, reservation_time),
     CONSTRAINT fk_reservation_user_admin FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )");
+
+$status_column_check = $conn->query("SHOW COLUMNS FROM reservations LIKE 'status'");
+if ($status_column_check) {
+    $status_col_row = $status_column_check->fetch_assoc();
+    if ($status_col_row && strpos($status_col_row['Type'], 'cancelled') === false) {
+        $conn->query("ALTER TABLE reservations MODIFY COLUMN status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending'");
+    }
+}
 
 $reservation_notified_column = $conn->query("SHOW COLUMNS FROM reservations LIKE 'student_notified'");
 if ($reservation_notified_column && $reservation_notified_column->num_rows === 0) {
@@ -183,7 +191,7 @@ if ($res) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Reservations</title>
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 

@@ -34,7 +34,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS reservations (
     pc_number VARCHAR(10) NOT NULL,
     reservation_date DATE NOT NULL,
     reservation_time TIME NOT NULL,
-    status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+    status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',
     admin_note VARCHAR(255) NULL,
     reviewed_at TIMESTAMP NULL,
     student_notified TINYINT(1) NOT NULL DEFAULT 0,
@@ -44,6 +44,14 @@ $conn->query("CREATE TABLE IF NOT EXISTS reservations (
     INDEX idx_reservation_schedule (reservation_date, reservation_time),
     CONSTRAINT fk_reservation_user_student FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )");
+
+$status_column_check = $conn->query("SHOW COLUMNS FROM reservations LIKE 'status'");
+if ($status_column_check) {
+    $status_col_row = $status_column_check->fetch_assoc();
+    if ($status_col_row && strpos($status_col_row['Type'], 'cancelled') === false) {
+        $conn->query("ALTER TABLE reservations MODIFY COLUMN status ENUM('pending', 'approved', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending'");
+    }
+}
 
 $reservation_notified_column = $conn->query("SHOW COLUMNS FROM reservations LIKE 'student_notified'");
 if ($reservation_notified_column && $reservation_notified_column->num_rows === 0) {
@@ -62,6 +70,15 @@ if ($sitin_pc_column && $sitin_pc_column->num_rows === 0) {
 
 $alert_message = "";
 $alert_type = "success";
+if (isset($_SESSION['cancel_success'])) {
+    $alert_message = $_SESSION['cancel_success'];
+    $alert_type = "success";
+    unset($_SESSION['cancel_success']);
+} elseif (isset($_SESSION['cancel_error'])) {
+    $alert_message = $_SESSION['cancel_error'];
+    $alert_type = "error";
+    unset($_SESSION['cancel_error']);
+}
 $user_id = (int) $_SESSION['user_id'];
 
 // Check if reservations are enabled
@@ -137,6 +154,35 @@ if (!$user) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'cancel_reservation') {
+        $reservation_id = (int) ($_POST['reservation_id'] ?? 0);
+
+        if ($reservation_id > 0) {
+            $check_stmt = $conn->prepare("SELECT id FROM reservations WHERE id = ? AND user_id = ? AND status = 'pending' LIMIT 1");
+            $check_stmt->bind_param("ii", $reservation_id, $user_id);
+            $check_stmt->execute();
+            $check_res = $check_stmt->get_result();
+
+            if ($check_res->num_rows > 0) {
+                $cancel_stmt = $conn->prepare("UPDATE reservations SET status = 'cancelled' WHERE id = ?");
+                $cancel_stmt->bind_param("i", $reservation_id);
+                if ($cancel_stmt->execute()) {
+                    $_SESSION['cancel_success'] = "Reservation cancelled successfully.";
+                } else {
+                    $_SESSION['cancel_error'] = "Unable to cancel reservation.";
+                }
+                $cancel_stmt->close();
+            } else {
+                $_SESSION['cancel_error'] = "Reservation not found or cannot be cancelled.";
+            }
+            $check_stmt->close();
+        }
+        header("Location: reservation.php");
+        exit();
+    }
+
     $today = date('Y-m-d');
 
     if ($purpose === '' || $sit_lab === '' || $reservation_date === '' || $reservation_time === '' || $pc_number === '') {
@@ -185,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $reservations = [];
-$list_stmt = $conn->prepare("SELECT purpose, sit_lab, pc_number, reservation_date, reservation_time, status, admin_note, created_at, reviewed_at FROM reservations WHERE user_id = ? ORDER BY created_at DESC");
+$list_stmt = $conn->prepare("SELECT id, purpose, sit_lab, pc_number, reservation_date, reservation_time, status, admin_note, created_at, reviewed_at FROM reservations WHERE user_id = ? ORDER BY created_at DESC");
 $list_stmt->bind_param("i", $user_id);
 $list_stmt->execute();
 $list_res = $list_stmt->get_result();
@@ -200,7 +246,7 @@ $list_stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCS | Reservation</title>
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
     <style>
         .pc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 0.5rem; margin-top: 0.4rem; }
         .pc-chip { border: 1px solid #d1d5db; border-radius: 8px; padding: 0.45rem 0.35rem; font-size: 0.85rem; text-align: center; cursor: pointer; user-select: none; }
@@ -321,12 +367,13 @@ $list_stmt->close();
                         <th>Status</th>
                         <th>Admin Note</th>
                         <th>Submitted</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($reservations)): ?>
                         <tr>
-                            <td colspan="7" class="empty-table">No reservations yet.</td>
+                            <td colspan="8" class="empty-table">No reservations yet.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($reservations as $item): ?>
@@ -340,6 +387,17 @@ $list_stmt->close();
                                 </td>
                                 <td><?php echo htmlspecialchars($item['admin_note'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($item['created_at']))); ?></td>
+                                <td>
+                                    <?php if ($item['status'] === 'pending'): ?>
+                                        <form method="POST" onsubmit="return confirm('Are you sure you want to cancel this reservation?');" style="margin: 0; display: inline;">
+                                            <input type="hidden" name="action" value="cancel_reservation">
+                                            <input type="hidden" name="reservation_id" value="<?php echo (int) $item['id']; ?>">
+                                            <button type="submit" class="btn-cancel-reservation">Cancel</button>
+                                        </form>
+                                    <?php else: ?>
+                                        <span class="empty-text">-</span>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
